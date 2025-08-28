@@ -5,22 +5,42 @@ Config.Depot = {
     x = 456.0,
     y = -1025.0,
     z = 28.0,
+    coords = vector3(456.0, -1025.0, 28.0),
     heading = 90.0,
     target = {
         enabled = true,
-        model = 'prop_busstop_02', -- Target prop model
-        offset = {x = 0.0, y = 0.0, z = 0.0}, -- Offset from depot center
-        size = {x = 1.0, y = 1.0, z = 1.0}, -- Target size
-        rotation = 0.0 -- Target rotation
+        pedModel = 'a_m_m_business_01', -- Depot manager ped model (business man)
+        -- Alternative ped models you can use:
+        -- 'a_m_m_business_01' - Business man
+        -- 'a_f_m_business_02' - Business woman  
+        -- 'a_m_m_tourist_01' - Tourist man
+        -- 'a_f_m_tourist_01' - Tourist woman
+        -- 's_m_m_trucker_01' - Truck driver
+        -- 's_m_y_busboy_01' - Bus driver
+        offset = {x = 0.0, y = 0.0, z = -1.0} -- Offset from depot center (ped spawns slightly below ground level)
     }
 }
 
--- Bus spawn location (near depot)
-Config.BusSpawn = {
-    x = 460.0,
-    y = -1025.0,
-    z = 28.0,
-    heading = 90.0
+-- Bus spawn locations (multiple points for availability checking)
+Config.BusSpawnPoints = {
+    vector4(460.0, -1025.0, 28.0, 90.0),   -- Primary spawn point
+    vector4(465.0, -1025.0, 28.0, 90.0),   -- Secondary spawn point
+    vector4(470.0, -1025.0, 28.0, 90.0),   -- Tertiary spawn point
+    vector4(475.0, -1025.0, 28.0, 90.0),   -- Fourth spawn point
+    vector4(480.0, -1025.0, 28.0, 90.0),   -- Fifth spawn point
+    vector4(460.0, -1030.0, 28.0, 90.0),   -- Alternative row
+    vector4(465.0, -1030.0, 28.0, 90.0),   -- Alternative row
+    vector4(470.0, -1030.0, 28.0, 90.0),   -- Alternative row
+}
+
+-- Spawn validation settings
+Config.SpawnValidation = {
+    checkRadius = 3.0,           -- Radius to check for obstacles
+    maxSpawnAttempts = 8,        -- Maximum attempts to find spawn point
+    vehicleCheckDistance = 2.5,  -- Distance to check for other vehicles
+    pedCheckDistance = 1.5,      -- Distance to check for peds
+    groundCheckDistance = 5.0,   -- Distance to check ground clearance
+    spawnPointSpacing = 5.0      -- Minimum spacing between spawn points
 }
 
 -- Bus model
@@ -31,10 +51,10 @@ Config.Routes = {
     {
         name = "Downtown Express",
         stops = {
-            {x = 200.0, y = -800.0, z = 30.0, name = "Downtown Central"},
-            {x = 300.0, y = -900.0, z = 30.0, name = "Shopping District"},
-            {x = 400.0, y = -1000.0, z = 30.0, name = "Residential Area"},
-            {x = 500.0, y = -1100.0, z = 30.0, name = "Business Park"}
+            {coords = vector3(200.0, -800.0, 30.0), name = "Downtown Central"},
+            {coords = vector3(300.0, -900.0, 30.0), name = "Shopping District"},
+            {coords = vector3(400.0, -1000.0, 30.0), name = "Residential Area"},
+            {coords = vector3(500.0, -1100.0, 30.0), name = "Business Park"}
         },
         basePayment = 150,
         baseXP = 50,
@@ -43,9 +63,9 @@ Config.Routes = {
     {
         name = "Airport Shuttle",
         stops = {
-            {x = 800.0, y = -1200.0, z = 30.0, name = "Airport Terminal 1"},
-            {x = 900.0, y = -1300.0, z = 30.0, name = "Airport Terminal 2"},
-            {x = 1000.0, y = -1400.0, z = 30.0, name = "Airport Parking"}
+            {coords = vector3(800.0, -1200.0, 30.0), name = "Airport Terminal 1"},
+            {coords = vector3(900.0, -1300.0, 30.0), name = "Airport Terminal 2"},
+            {coords = vector3(1000.0, -1400.0, 30.0), name = "Airport Parking"}
         },
         basePayment = 200,
         baseXP = 75,
@@ -54,9 +74,9 @@ Config.Routes = {
     {
         name = "Beach Route",
         stops = {
-            {x = -1200.0, y = -1500.0, z = 4.0, name = "Beach Boardwalk"},
-            {x = -1300.0, y = -1600.0, z = 4.0, name = "Beach Resort"},
-            {x = -1400.0, y = -1700.0, z = 4.0, name = "Beach Pier"}
+            {coords = vector3(-1200.0, -1500.0, 4.0), name = "Beach Boardwalk"},
+            {coords = vector3(-1300.0, -1600.0, 4.0), name = "Beach Resort"},
+            {coords = vector3(-1400.0, -1700.0, 4.0), name = "Beach Pier"}
         },
         basePayment = 120,
         baseXP = 40,
@@ -79,7 +99,16 @@ Config.PassengerSettings = {
     passengerSpawnOffset = {10, 10}, -- X and Y offset for passenger spawning
     passengerBonus = 5, -- $5 per passenger
     autoLoadDistance = 5.0, -- Distance to automatically load passengers when stopped
-    passengerXPBonus = 2 -- XP per passenger loaded
+    passengerXPBonus = 2, -- XP per passenger loaded
+    
+    -- Realistic passenger loading settings
+    realisticLoading = true, -- Enable realistic walking to bus (set to false for instant warp)
+    doorOffset = 2.0, -- Distance from bus center to door
+    walkSpeed = 1.0, -- How fast passengers walk to bus
+    doorReachDistance = 1.5, -- How close passenger needs to be to door
+    maxWalkTime = 5.0, -- Maximum seconds to walk to bus (5 seconds)
+    maxEnterTime = 3.0, -- Maximum seconds to enter bus (3 seconds)
+    fallbackToWarp = true -- If realistic loading fails, warp passenger in
 }
 
 -- Leveling system configuration

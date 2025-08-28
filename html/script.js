@@ -360,10 +360,10 @@ if (window.location.href.includes('test-dashboard.html')) {
         {
             name: "Downtown Express",
             stops: [
-                {x: 200.0, y: -800.0, z: 30.0, name: "Downtown Central"},
-                {x: 300.0, y: -900.0, z: 30.0, name: "Shopping District"},
-                {x: 400.0, y: -1000.0, z: 30.0, name: "Residential Area"},
-                {x: 500.0, y: -1100.0, z: 30.0, name: "Business Park"}
+                {coords: {x: 200.0, y: -800.0, z: 30.0}, name: "Downtown Central"},
+                {coords: {x: 300.0, y: -900.0, z: 30.0}, name: "Shopping District"},
+                {coords: {x: 400.0, y: -1000.0, z: 30.0}, name: "Residential Area"},
+                {coords: {x: 500.0, y: -1100.0, z: 30.0}, name: "Business Park"}
             ],
             basePayment: 150,
             baseXP: 50,
@@ -372,9 +372,9 @@ if (window.location.href.includes('test-dashboard.html')) {
         {
             name: "Airport Shuttle",
             stops: [
-                {x: 800.0, y: -1200.0, z: 30.0, name: "Airport Terminal 1"},
-                {x: 900.0, y: -1300.0, z: 30.0, name: "Airport Terminal 2"},
-                {x: 1000.0, y: -1400.0, z: 30.0, name: "Airport Parking"}
+                {coords: {x: 800.0, y: -1200.0, z: 30.0}, name: "Airport Terminal 1"},
+                {coords: {x: 900.0, y: -1300.0, z: 30.0}, name: "Airport Terminal 2"},
+                {coords: {x: 1000.0, y: -1400.0, z: 30.0}, name: "Airport Parking"}
             ],
             basePayment: 200,
             baseXP: 75,
@@ -383,9 +383,9 @@ if (window.location.href.includes('test-dashboard.html')) {
         {
             name: "Beach Route",
             stops: [
-                {x: -1200.0, y: -1500.0, z: 4.0, name: "Beach Boardwalk"},
-                {x: -1300.0, y: -1600.0, z: 4.0, name: "Beach Resort"},
-                {x: -1400.0, y: -1700.0, z: 4.0, name: "Beach Pier"}
+                {coords: {x: -1200.0, y: -1500.0, z: 4.0}, name: "Beach Boardwalk"},
+                {coords: {x: -1300.0, y: -1600.0, z: 4.0}, name: "Beach Resort"},
+                {coords: {x: -1400.0, y: -1700.0, z: 4.0}, name: "Beach Pier"}
             ],
             basePayment: 120,
             baseXP: 40,

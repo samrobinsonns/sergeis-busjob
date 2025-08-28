@@ -15,6 +15,7 @@ local stopBlips = {}
 local passengerPeds = {}
 local isRouteActive = false
 local dashboardOpen = false
+local depotPed = nil
 
 -- Initialize when resource starts
 Citizen.CreateThread(function()
@@ -52,44 +53,73 @@ end)
 function SetupDepotTarget()
     if not Config.Depot.target.enabled then return end
     
-    local depotCoords = vector3(Config.Depot.x, Config.Depot.y, Config.Depot.z)
+    local depotCoords = Config.Depot.coords
     
+    -- Create the depot manager ped
+    local pedModel = GetHashKey(Config.Depot.target.pedModel)
+    RequestModel(pedModel)
+    while not HasModelLoaded(pedModel) do
+        Citizen.Wait(0)
+    end
+    
+    -- Spawn the ped
+    depotPed = CreatePed(4, pedModel, depotCoords.x, depotCoords.y, depotCoords.z - 1.0, Config.Depot.heading, false, true)
+    SetEntityHeading(depotPed, Config.Depot.heading)
+    FreezeEntityPosition(depotPed, true)
+    SetEntityInvincible(depotPed, true)
+    SetEntityCanBeDamaged(depotPed, false)
+    SetPedCanRagdoll(depotPed, false)
+    SetPedCanBeTargetted(depotPed, true)
+    SetBlockingOfNonTemporaryEvents(depotPed, true)
+    
+    -- Add target to the ped
     if Config.TargetSystem.type == 'qb-target' then
-        exports['qb-target']:AddBoxZone("bus_depot", depotCoords,
-            Config.Depot.target.size.x, Config.Depot.target.size.y, {
-            name = "bus_depot",
-            heading = Config.Depot.target.rotation,
-            debugPoly = Config.Debug.enabled,
-            minZ = depotCoords.z - 1,
-            maxZ = depotCoords.z + 2,
-        }, {
+        exports['qb-target']:AddTargetEntity(depotPed, {
             options = {
                 {
                     type = "client",
                     event = "bus:openDashboard",
                     icon = Config.TargetSystem.icon,
                     label = Config.TargetSystem.label,
+                    canInteract = function()
+                        return not isRouteActive
+                    end
                 },
             },
             distance = Config.TargetSystem.distance
         })
+        
+        if Config.Debug.enabled then
+            print('[BUS DEBUG] qb-target entity added successfully')
+        end
     elseif Config.TargetSystem.type == 'ox_target' then
-        exports.ox_target:addBoxZone({
-            coords = depotCoords,
-            size = vector3(Config.Depot.target.size.x, Config.Depot.target.size.y, Config.Depot.target.size.z),
-            rotation = Config.Depot.target.rotation,
-            debug = Config.Debug.enabled,
-            options = {
-                {
-                    name = 'bus_depot',
-                    icon = Config.TargetSystem.icon,
-                    label = Config.TargetSystem.label,
-                    onSelect = function()
-                        TriggerEvent('bus:openDashboard')
-                    end
-                }
+        exports.ox_target:addLocalEntity(depotPed, {
+            {
+                name = 'bus_depot',
+                icon = Config.TargetSystem.icon,
+                label = Config.TargetSystem.label,
+                canInteract = function()
+                    return not isRouteActive
+                end,
+                onSelect = function()
+                    TriggerEvent('bus:openDashboard')
+                end
             }
         })
+        
+        if Config.Debug.enabled then
+            print('[BUS DEBUG] ox_target entity added successfully')
+        end
+    end
+    
+    -- Release the model
+    SetModelAsNoLongerNeeded(pedModel)
+    
+    if Config.Debug.enabled then
+        print('[BUS DEBUG] Depot manager ped created and targeted')
+        print(string.format('[BUS DEBUG] Ped ID: %d, Model: %s', depotPed, Config.Depot.target.pedModel))
+        print(string.format('[BUS DEBUG] Target Label: %s', Config.TargetSystem.label))
+        print(string.format('[BUS DEBUG] Target Type: %s', Config.TargetSystem.type))
     end
 end
 
@@ -178,11 +208,14 @@ function StartRoute(routeIndex)
         return
     end
     
+    -- Spawn bus first (validation)
+    if not SpawnBus() then
+        QBCore.Functions.Notify('Failed to start route: No available parking space.', 'error')
+        return
+    end
+    
     -- Check if player can start route (anti-exploit)
     TriggerServerEvent('bus:checkRouteStart')
-    
-    -- Spawn bus
-    SpawnBus()
     
     -- Setup route
     currentRoute = route
@@ -212,6 +245,13 @@ function SpawnBus()
         DeleteEntity(busVehicle)
     end
     
+    -- Find available spawn point
+    local spawnPoint = FindAvailableSpawnPoint()
+    if not spawnPoint then
+        QBCore.Functions.Notify('No available parking spaces at the depot. Please wait for a space to open up.', 'error')
+        return false
+    end
+    
     -- Request model
     local model = GetHashKey(Config.BusModel)
     RequestModel(model)
@@ -219,8 +259,14 @@ function SpawnBus()
         Citizen.Wait(0)
     end
     
-    -- Spawn bus
-    busVehicle = CreateVehicle(model, Config.BusSpawn.x, Config.BusSpawn.y, Config.BusSpawn.z, Config.BusSpawn.heading, true, false)
+    -- Spawn bus at validated location
+    busVehicle = CreateVehicle(model, spawnPoint.x, spawnPoint.y, spawnPoint.z, spawnPoint.w, true, false)
+    
+    if not DoesEntityExist(busVehicle) then
+        QBCore.Functions.Notify('Failed to spawn bus. Please try again.', 'error')
+        SetModelAsNoLongerNeeded(model)
+        return false
+    end
     
     -- Set vehicle properties
     SetVehicleEngineOn(busVehicle, Config.VehicleSettings.engineOn, true, true)
@@ -236,8 +282,75 @@ function SpawnBus()
     SetModelAsNoLongerNeeded(model)
     
     if Config.Debug.enabled then
-        print('[BUS DEBUG] Bus spawned successfully')
+        print(string.format('[BUS DEBUG] Bus spawned successfully at: %.2f, %.2f, %.2f', spawnPoint.x, spawnPoint.y, spawnPoint.z))
     end
+    
+    return true
+end
+
+-- Find available spawn point
+function FindAvailableSpawnPoint()
+    for i, spawnPoint in ipairs(Config.BusSpawnPoints) do
+        if IsSpawnPointAvailable(spawnPoint) then
+            if Config.Debug.enabled then
+                print(string.format('[BUS DEBUG] Found available spawn point %d at: %.2f, %.2f, %.2f', i, spawnPoint.x, spawnPoint.y, spawnPoint.z))
+            end
+            return spawnPoint
+        end
+    end
+    
+    if Config.Debug.enabled then
+        print('[BUS DEBUG] No available spawn points found')
+    end
+    
+    return nil
+end
+
+-- Check if spawn point is available
+function IsSpawnPointAvailable(spawnPoint)
+    local coords = vector3(spawnPoint.x, spawnPoint.y, spawnPoint.z)
+    
+    -- Check for vehicles in the area
+    local vehicles = GetGamePool('CVehicle')
+    for _, vehicle in pairs(vehicles) do
+        if DoesEntityExist(vehicle) and vehicle ~= busVehicle then
+            local vehicleCoords = GetEntityCoords(vehicle)
+            local distance = #(coords - vehicleCoords)
+            if distance < Config.SpawnValidation.vehicleCheckDistance then
+                return false
+            end
+        end
+    end
+    
+    -- Check for peds in the area
+    local peds = GetGamePool('CPed')
+    for _, ped in pairs(peds) do
+        if DoesEntityExist(ped) and ped ~= PlayerPedId() then
+            local pedCoords = GetEntityCoords(ped)
+            local distance = #(coords - pedCoords)
+            if distance < Config.SpawnValidation.pedCheckDistance then
+                return false
+            end
+        end
+    end
+    
+    -- Check ground clearance
+    local groundZ = GetGroundZFor_3dCoord(coords.x, coords.y, coords.z, false)
+    if groundZ and math.abs(coords.z - groundZ) > Config.SpawnValidation.groundCheckDistance then
+        return false
+    end
+    
+    -- Check if area is clear using raycast
+    local startPos = vector3(coords.x, coords.y, coords.z + 2.0)
+    local endPos = vector3(coords.x, coords.y, coords.z - 2.0)
+    local ray = StartShapeTestRay(startPos.x, startPos.y, startPos.z, endPos.x, endPos.y, endPos.z, 1, 0, 0)
+    local _, hit, _, _, _ = GetShapeTestResult(ray)
+    
+    if hit == 1 then
+        return false
+    end
+    
+    return true
 end
 
 function CreateRouteBlips()
@@ -251,7 +364,7 @@ function CreateRouteBlips()
     
     -- Create blips for each stop
     for i, stop in ipairs(currentRoute.stops) do
-        local blip = AddBlipForCoord(stop.x, stop.y, stop.z)
+        local blip = AddBlipForCoord(stop.coords.x, stop.coords.y, stop.coords.z)
         SetBlipSprite(blip, Config.BlipSettings.sprite)
         SetBlipColour(blip, Config.BlipSettings.upcomingStopColor)
         SetBlipScale(blip, Config.BlipSettings.scale)
@@ -308,7 +421,7 @@ function CheckRouteProgress()
     
     -- Check if at depot (route completion)
     local playerCoords = GetEntityCoords(PlayerPedId())
-    local depotCoords = vector3(Config.Depot.x, Config.Depot.y, Config.Depot.z)
+    local depotCoords = Config.Depot.coords
     local distanceToDepot = #(playerCoords - depotCoords)
     
     if distanceToDepot < Config.GameSettings.depotReturnDistance and currentStop > #currentRoute.stops then
@@ -325,7 +438,7 @@ function CheckPassengerLoading()
     if not currentStopData then return end
     
     local busCoords = GetEntityCoords(busVehicle)
-    local stopCoords = vector3(currentStopData.x, currentStopData.y, currentStopData.z)
+    local stopCoords = currentStopData.coords
     local distance = #(busCoords - stopCoords)
     
     -- Check if bus is at the current stop
@@ -367,7 +480,7 @@ function SpawnPassengersAtStop(stopData, stopIndex)
         -- Calculate spawn position
         local offsetX = math.random(-Config.PassengerSettings.passengerSpawnOffset[1], Config.PassengerSettings.passengerSpawnOffset[1])
         local offsetY = math.random(-Config.PassengerSettings.passengerSpawnOffset[2], Config.PassengerSettings.passengerSpawnOffset[2])
-        local spawnPos = vector3(stopData.x + offsetX, stopData.y + offsetY, stopData.z)
+        local spawnPos = vector3(stopData.coords.x + offsetX, stopData.coords.y + offsetY, stopData.coords.z)
         
         local ped = CreatePed(4, hash, spawnPos.x, spawnPos.y, spawnPos.z, 0.0, false, true)
         
@@ -378,7 +491,7 @@ function SpawnPassengersAtStop(stopData, stopIndex)
         SetPedCanRagdollFromPlayerImpact(ped, Config.PedSettings.canRagdollFromPlayerImpact)
         SetPedCanRagdollFromPlayerWeaponImpact(ped, Config.PedSettings.canRagdollFromPlayerWeaponImpact)
         SetPedCanRagdollFromPlayerVehicleImpact(ped, Config.PedSettings.canRagdollFromPlayerVehicleImpact)
-        SetPedBlockingEvents(ped, Config.PedSettings.blockingEvents)
+        SetBlockingOfNonTemporaryEvents(ped, Config.PedSettings.blockNonTemporaryEvents)
         
         -- Make ped wait at bus stop
         TaskWanderStandard(ped, 10.0, 10)
@@ -399,20 +512,114 @@ function LoadPassengers(stopIndex)
     if not stopData or not passengerPeds[stopIndex] then return end
     
     local loadedPassengers = 0
+    local totalPassengers = #passengerPeds[stopIndex]
+    local passengersLoaded = 0
     
-    -- Load each passenger
-    for _, ped in ipairs(passengerPeds[stopIndex]) do
-        if DoesEntityExist(ped) then
-            -- Teleport passenger into bus
-            local seatIndex = GetNextFreeSeat(busVehicle)
-            if seatIndex ~= -1 then
-                TaskWarpPedIntoVehicle(ped, busVehicle, seatIndex)
-                loadedPassengers = loadedPassengers + 1
-                currentPassengerCount = currentPassengerCount + 1
+    -- Check if realistic loading is enabled
+    if not Config.PassengerSettings.realisticLoading then
+        -- Fallback to old warp method
+        for _, ped in ipairs(passengerPeds[stopIndex]) do
+            if DoesEntityExist(ped) then
+                local seatIndex = GetNextFreeSeat(busVehicle)
+                if seatIndex ~= -1 then
+                    TaskWarpPedIntoVehicle(ped, busVehicle, seatIndex)
+                    loadedPassengers = loadedPassengers + 1
+                    currentPassengerCount = currentPassengerCount + 1
+                end
             end
         end
+        CompletePassengerLoading(stopIndex)
+        return
     end
     
+    -- Load each passenger with realistic walking animation
+    for i, ped in ipairs(passengerPeds[stopIndex]) do
+        if DoesEntityExist(ped) then
+            -- Calculate door position (front right door of bus)
+            local busCoords = GetEntityCoords(busVehicle)
+            local busHeading = GetEntityHeading(busVehicle)
+            local doorOffset = vector3(
+                math.cos(math.rad(busHeading + 90)) * Config.PassengerSettings.doorOffset,  -- Right side
+                math.sin(math.rad(busHeading + 90)) * Config.PassengerSettings.doorOffset,  -- Right side
+                0.0
+            )
+            local doorPosition = busCoords + doorOffset
+            
+            -- Make passenger walk to bus door
+            TaskGoToCoordAnyMeans(ped, doorPosition.x, doorPosition.y, doorPosition.z, Config.PassengerSettings.walkSpeed, 0, false, 786603, 0xbf800000)
+            
+            -- Wait a bit for passenger to reach door, then enter
+            Citizen.CreateThread(function()
+                local maxAttempts = Config.PassengerSettings.maxWalkTime * 10 -- Convert to 100ms intervals
+                local attempts = 0
+                while attempts < maxAttempts and DoesEntityExist(ped) do
+                    Citizen.Wait(100)
+                    attempts = attempts + 1
+                    
+                    local pedCoords = GetEntityCoords(ped)
+                    local distanceToDoor = #(pedCoords - doorPosition)
+                    
+                    if distanceToDoor < Config.PassengerSettings.doorReachDistance then -- Close enough to door
+                        -- Find available seat
+                        local seatIndex = GetNextFreeSeat(busVehicle)
+                        if seatIndex ~= -1 then
+                            -- Make passenger enter bus naturally
+                            TaskEnterVehicle(ped, busVehicle, -1, seatIndex, 1.0, 1, 0)
+                            
+                            -- Wait for passenger to enter, then count them
+                            Citizen.CreateThread(function()
+                                local maxEnterAttempts = Config.PassengerSettings.maxEnterTime * 10 -- Convert to 100ms intervals
+                                local enterAttempts = 0
+                                while enterAttempts < maxEnterAttempts and DoesEntityExist(ped) do
+                                    Citizen.Wait(100)
+                                    enterAttempts = enterAttempts + 1
+                                    
+                                    if IsPedInVehicle(ped, busVehicle, false) then
+                                        loadedPassengers = loadedPassengers + 1
+                                        currentPassengerCount = currentPassengerCount + 1
+                                        passengersLoaded = passengersLoaded + 1
+                                        break
+                                    end
+                                end
+                                
+                                -- If passenger didn't enter after timeout, force them in (if fallback enabled)
+                                if not IsPedInVehicle(ped, busVehicle, false) and DoesEntityExist(ped) and Config.PassengerSettings.fallbackToWarp then
+                                    TaskWarpPedIntoVehicle(ped, busVehicle, seatIndex)
+                                    loadedPassengers = loadedPassengers + 1
+                                    currentPassengerCount = currentPassengerCount + 1
+                                    passengersLoaded = passengersLoaded + 1
+                                end
+                                
+                                -- Check if all passengers are loaded
+                                if passengersLoaded >= totalPassengers then
+                                    CompletePassengerLoading(stopIndex)
+                                end
+                            end)
+                        end
+                        break
+                    end
+                end
+                
+                -- If passenger didn't reach door after timeout, force them in (if fallback enabled)
+                if attempts >= maxAttempts and DoesEntityExist(ped) and Config.PassengerSettings.fallbackToWarp then
+                    local seatIndex = GetNextFreeSeat(busVehicle)
+                    if seatIndex ~= -1 then
+                        TaskWarpPedIntoVehicle(ped, busVehicle, seatIndex)
+                        loadedPassengers = loadedPassengers + 1
+                        currentPassengerCount = currentPassengerCount + 1
+                        passengersLoaded = passengersLoaded + 1
+                        
+                        if passengersLoaded >= totalPassengers then
+                            CompletePassengerLoading(stopIndex)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end
+
+function CompletePassengerLoading(stopIndex)
     -- Clear passenger data for this stop
     passengerPeds[stopIndex] = nil
     
@@ -433,7 +640,7 @@ function LoadPassengers(stopIndex)
     end
     
     if Config.Debug.enabled then
-        print(string.format('[BUS DEBUG] Loaded %d passengers, moved to stop %d', loadedPassengers, currentStop))
+        print(string.format('[BUS DEBUG] All passengers loaded, moved to stop %d', currentStop))
     end
 end
 
@@ -455,8 +662,8 @@ function CompleteRoute()
     local totalXP = currentRoute.baseXP + (currentPassengerCount * Config.PassengerSettings.passengerXPBonus)
     local totalPayment = currentRoute.basePayment + (currentPassengerCount * Config.PassengerSettings.passengerBonus)
     
-    -- Send completion data to server
-    TriggerServerEvent('bus:completeRoute', {
+    -- Store route data before clearing
+    local routeData = {
         routeName = currentRoute.name,
         routePayment = currentRoute.basePayment,
         passengerBonus = currentPassengerCount * Config.PassengerSettings.passengerBonus,
@@ -465,27 +672,29 @@ function CompleteRoute()
         distanceTraveled = routeDistance,
         xpEarned = totalXP,
         completionTime = completionTime
-    })
+    }
     
-    -- End route
+    -- Send completion data to server
+    TriggerServerEvent('bus:completeRoute', routeData)
+    
+    -- End route (this clears the data)
     EndRoute()
     
-    -- Notify player
-    QBCore.Functions.Notify(string.format(Config.Messages.paymentReceived, totalPayment, currentRoute.basePayment, currentPassengerCount * Config.PassengerSettings.passengerBonus), 'success')
+    -- Note: Server will handle the payment notification
 end
 
 function CalculateRouteDistance()
     local totalDistance = 0.0
-    local lastCoords = vector3(Config.BusSpawn.x, Config.BusSpawn.y, Config.BusSpawn.z)
+    local lastCoords = Config.BusSpawnPoints[1] -- Use first spawn point as starting location
     
     for _, stop in ipairs(currentRoute.stops) do
-        local stopCoords = vector3(stop.x, stop.y, stop.z)
+        local stopCoords = stop.coords
         totalDistance = totalDistance + #(stopCoords - lastCoords)
         lastCoords = stopCoords
     end
     
     -- Add distance back to depot
-    local depotCoords = vector3(Config.Depot.x, Config.Depot.y, Config.Depot.z)
+    local depotCoords = Config.Depot.coords
     totalDistance = totalDistance + #(depotCoords - lastCoords)
     
     return totalDistance
@@ -548,11 +757,9 @@ end, false)
 -- Resource cleanup
 AddEventHandler('onResourceStop', function(resourceName)
     if GetCurrentResourceName() == resourceName then
-        -- Remove target zone
-        if Config.TargetSystem.type == 'qb-target' then
-            exports['qb-target']:RemoveZone("bus_depot")
-        elseif Config.TargetSystem.type == 'ox_target' then
-            exports.ox_target:removeZone("bus_depot")
+        -- Remove depot ped
+        if depotPed and DoesEntityExist(depotPed) then
+            DeleteEntity(depotPed)
         end
         
         -- End current route
@@ -584,6 +791,23 @@ if Config.Debug.enabled then
         end
         if busVehicle then
             print(string.format('[BUS DEBUG] Bus Exists: %s', tostring(DoesEntityExist(busVehicle))))
+        end
+        if depotPed then
+            print(string.format('[BUS DEBUG] Depot Ped Exists: %s', tostring(DoesEntityExist(depotPed))))
+            print(string.format('[BUS DEBUG] Depot Ped Coords: %.2f, %.2f, %.2f', 
+                GetEntityCoords(depotPed)))
+        end
+    end, false)
+    
+    RegisterCommand('testtarget', function()
+        if depotPed and DoesEntityExist(depotPed) then
+            print('[BUS DEBUG] Testing target system...')
+            print(string.format('[BUS DEBUG] Ped ID: %d', depotPed))
+            print(string.format('[BUS DEBUG] Target Type: %s', Config.TargetSystem.type))
+            print(string.format('[BUS DEBUG] Target Label: %s', Config.TargetSystem.label))
+            print('[BUS DEBUG] Try targeting the ped now...')
+        else
+            print('[BUS DEBUG] Depot ped does not exist!')
         end
     end, false)
 end

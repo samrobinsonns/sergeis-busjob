@@ -1,0 +1,325 @@
+# Bus Driving Script - Cursor Rules & Development Guide
+
+## 🚌 PROJECT OVERVIEW
+
+This is a **FiveM bus driving job script** built for **QBCore Framework**. Players can work as bus drivers, complete routes, earn XP, level up, and compete on leaderboards. The system features a modern iPad-style dashboard UI, realistic passenger loading, comprehensive spawn validation, and a full database integration.
+
+## 🏗️ ARCHITECTURE & STRUCTURE
+
+### **Core Components:**
+- **Client-side** (`client/main.lua`) - Player interaction, UI, vehicle spawning, route management
+- **Server-side** (`server/main.lua`) - Database operations, anti-exploit, payment processing
+- **Configuration** (`config.lua`) - Centralized settings for all aspects of the script
+- **UI System** (`html/`) - Modern dashboard with iPad aesthetic, responsive design
+- **Database** (`sql/bus_jobs.sql`) - Player stats, job history, leaderboards
+
+### **Framework Dependencies:**
+- **QBCore** - Core framework for player management, money, notifications
+- **oxmysql** - Database operations and player data persistence
+- **qb-target/ox_target** - Interactive zones and ped targeting
+
+## 🎯 DEVELOPMENT PHILOSOPHY
+
+### **Configuration-Driven Design:**
+- **EVERYTHING** should be configurable via `config.lua`
+- No hardcoded values in client/server files
+- Easy customization for server owners
+- Modular settings for different environments
+
+### **Performance & Optimization:**
+- Configurable thread delays and performance settings
+- Efficient entity management and cleanup
+- Anti-exploit protection with rate limiting
+- Optimized database queries and operations
+
+### **User Experience:**
+- Intuitive iPad-style dashboard interface
+- Realistic passenger loading animations
+- Clear GPS guidance and visual feedback
+- Comprehensive error handling and notifications
+
+## 📁 FILE STRUCTURE & RESPONSIBILITIES
+
+### **`fxmanifest.lua`**
+- Resource metadata and dependencies
+- Script loading order (shared → client → server)
+- UI file declarations
+
+### **`config.lua`**
+- **Central configuration hub** for entire system
+- Depot locations, spawn points, route definitions
+- UI settings, performance parameters, anti-exploit rules
+- Leveling system, payment methods, notification types
+
+### **`client/main.lua`**
+- **Player interaction and game logic**
+- Depot target system setup
+- Route management and execution
+- Vehicle spawning with validation
+- Passenger system and animations
+- GPS waypoints and progress tracking
+- NUI communication and event handling
+
+### **`server/main.lua`**
+- **Database operations and server-side logic**
+- Player statistics management
+- Anti-exploit protection and rate limiting
+- Payment processing and XP calculation
+- Level progression and bonus application
+- Leaderboard updates and maintenance
+
+### **`html/index.html`**
+- **Dashboard structure and layout**
+- iPad frame and screen elements
+- Navigation sidebar and content tabs
+- Responsive design for various screen sizes
+
+### **`html/style.css`**
+- **Modern iPad aesthetic styling**
+- CSS variables for consistent theming
+- Responsive design and animations
+- Professional UI components and layouts
+
+### **`html/script.js`**
+- **Dashboard functionality and NUI logic**
+- Tab switching and content management
+- Player statistics display and updates
+- Route selection and job initiation
+- Leaderboard data handling
+
+### **`sql/bus_jobs.sql`**
+- **Database schema and structure**
+- Player statistics tables
+- Job history tracking
+- Leaderboard and ranking system
+- Performance indexes and optimization
+
+## 🔧 CODING STANDARDS & PATTERNS
+
+### **Lua Coding Standards:**
+```lua
+-- Use descriptive variable names
+local isRouteActive = false
+local currentPassengerCount = 0
+
+-- Group related functions together
+function SpawnBus()
+    -- Bus spawning logic
+end
+
+function FindAvailableSpawnPoint()
+    -- Spawn point validation
+end
+
+-- Use consistent error handling
+if not currentRoute then 
+    QBCore.Functions.Notify('No active route!', 'error')
+    return 
+end
+
+-- Add debug logging for troubleshooting
+if Config.Debug.enabled then
+    print(string.format('[BUS DEBUG] Route started: %s', route.name))
+end
+```
+
+### **JavaScript/HTML Standards:**
+```javascript
+// Use descriptive function names
+function loadDashboardData() { }
+function updatePlayerStats() { }
+function switchTab(tabName) { }
+
+// Consistent event handling
+document.addEventListener('DOMContentLoaded', function() {
+    setupEventListeners();
+    loadInitialData();
+});
+
+// Error handling and validation
+if (!data || !data.routeIndex) {
+    console.error('Invalid route data received');
+    return;
+}
+```
+
+### **CSS Standards:**
+```css
+/* Use CSS variables for consistent theming */
+:root {
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --error-color: #dc3545;
+}
+
+/* Responsive design patterns */
+@media (max-width: 768px) {
+    .dashboard-container {
+        flex-direction: column;
+    }
+}
+
+/* Consistent component styling */
+.stat-card {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+```
+
+## 🚀 DEVELOPMENT WORKFLOW
+
+### **1. Feature Development:**
+- Start with `config.lua` - define new settings
+- Update `client/main.lua` - implement client-side logic
+- Update `server/main.lua` - implement server-side logic
+- Update UI files if needed - enhance user experience
+- Test thoroughly with debug mode enabled
+
+### **2. Configuration Changes:**
+- **ALWAYS** add new settings to `config.lua`
+- Provide clear comments and examples
+- Include validation and default values
+- Update documentation and examples
+
+### **3. Database Changes:**
+- Modify `sql/bus_jobs.sql` for schema updates
+- Ensure backward compatibility
+- Test with existing data
+- Update related Lua functions
+
+### **4. UI Enhancements:**
+- Maintain iPad aesthetic consistency
+- Ensure responsive design
+- Test on various screen sizes
+- Keep performance optimized
+
+## 🧪 TESTING & DEBUGGING
+
+### **Debug Mode:**
+```lua
+Config.Debug.enabled = true  -- Enable comprehensive logging
+```
+
+### **Debug Commands:**
+- `/busdebug` - Show current route status
+- `/testtarget` - Test target system functionality
+- `/bushelp` - Display help information
+
+### **Testing Checklist:**
+1. **Resource Startup** - No errors, ped spawns correctly
+2. **Target System** - Ped can be targeted, dashboard opens
+3. **Route Selection** - Routes display, selection works
+4. **Bus Spawning** - Vehicle spawns, validation works
+5. **Route Execution** - GPS guidance, passenger loading
+6. **Completion** - Statistics, payment, database updates
+
+## 🔒 SECURITY & ANTI-EXPLOIT
+
+### **Rate Limiting:**
+- Maximum routes per hour
+- Cooldown between route attempts
+- Coordinate validation
+- Distance verification
+
+### **Data Validation:**
+- Server-side route data validation
+- Payment amount limits
+- XP earning validation
+- Player permission checks
+
+## 📊 DATABASE INTEGRATION
+
+### **Tables:**
+- `bus_jobs` - Player statistics and progression
+- `bus_job_history` - Individual job records
+- `bus_leaderboard` - Weekly/monthly rankings
+
+### **Operations:**
+- Player record creation and updates
+- XP and level progression
+- Job history tracking
+- Leaderboard maintenance
+
+## 🎨 UI/UX PRINCIPLES
+
+### **Design Philosophy:**
+- **Modern iPad aesthetic** - Professional, clean interface
+- **Intuitive navigation** - Clear tab structure and flow
+- **Responsive design** - Works on all screen sizes
+- **Visual feedback** - Clear status indicators and progress
+
+### **User Flow:**
+1. **Approach depot** → See professional depot manager
+2. **Target interaction** → Clear "Open Bus Job Dashboard" label
+3. **Dashboard access** → iPad-style interface with tabs
+4. **Route selection** → Clear route information and selection
+5. **Job execution** → GPS guidance and visual feedback
+6. **Completion** → Clear statistics and rewards
+
+## 🚧 COMMON ISSUES & SOLUTIONS
+
+### **Ped Not Spawning:**
+- Check coordinates in config
+- Verify model exists
+- Check for entity conflicts
+
+### **Target System Issues:**
+- Verify qb-target/ox_target integration
+- Check ped properties and targeting
+- Verify event registration
+
+### **Database Errors:**
+- Check oxmysql dependency
+- Verify table structure
+- Check SQL syntax
+
+### **UI Not Displaying:**
+- Verify NUI file loading
+- Check event communication
+- Verify CSS/JS loading
+
+## 🔄 MAINTENANCE & UPDATES
+
+### **Regular Tasks:**
+- Monitor performance metrics
+- Update anti-exploit rules
+- Optimize database queries
+- Enhance UI/UX based on feedback
+
+### **Version Updates:**
+- Maintain backward compatibility
+- Update documentation
+- Test thoroughly before release
+- Provide migration guides
+
+## 📚 RESOURCES & REFERENCES
+
+### **FiveM Development:**
+- Native function documentation
+- Event system understanding
+- Entity management best practices
+
+### **QBCore Framework:**
+- Player data management
+- Money and inventory systems
+- Command and permission systems
+
+### **UI Development:**
+- Modern CSS techniques
+- Responsive design patterns
+- JavaScript best practices
+
+---
+
+## 🎯 REMEMBER
+
+**This is a professional-grade bus driving script** that prioritizes:
+- **User Experience** - Intuitive, engaging gameplay
+- **Performance** - Optimized, smooth operation
+- **Maintainability** - Clean, well-documented code
+- **Customization** - Easy configuration and modification
+- **Reliability** - Robust error handling and validation
+
+**Always test thoroughly, maintain clean code, and prioritize user experience!** 🚌✨

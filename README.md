@@ -33,9 +33,14 @@ A comprehensive FiveM bus driving script with an integrated iPad-styled dashboar
 
 ### 1. **Database Setup**
 ```sql
--- Import the SQL file to create required tables
+-- Import the simplified SQL file (no stored procedures required)
+mysql -u username -p database_name < sql/bus_jobs_simple.sql
+
+-- Or use the full version with stored procedures
 mysql -u username -p database_name < sql/bus_jobs.sql
 ```
+
+**Note**: The script now includes a simplified database schema (`bus_jobs_simple.sql`) that works immediately without stored procedures. Use this for quick setup, or the full version for advanced features.
 
 ### 2. **Resource Installation**
 ```bash

@@ -53,6 +53,9 @@ AddEventHandler('bus:getPlayerStats', function()
             stats.distance = data.total_distance
             stats.jobs = data.jobs_completed
             stats.title = GetPlayerTitle(data.current_level)
+        else
+            -- Create new player record if none exists
+            CreateNewPlayerRecord(citizenid, playerName)
         end
         
         -- Send stats to client
@@ -104,27 +107,28 @@ AddEventHandler('bus:completeRoute', function(routeData)
         return
     end
     
-    -- Calculate total payment with level bonus
-    local levelBonus = GetPlayerLevelBonus(citizenid)
-    local finalPayment = math.floor(routeData.totalPayment * levelBonus)
-    
-    -- Add money to player
-    Player.Functions.AddMoney(Config.PaymentSettings.defaultMethod, finalPayment, Config.PaymentSettings.paymentReason)
-    
-    -- Update database
-    UpdatePlayerStats(citizenid, playerName, routeData, finalPayment)
-    
-    -- Notify player
-    TriggerClientEvent('QBCore:Notify', src, string.format(Config.Messages.paymentReceived, 
-        finalPayment, routeData.routePayment, routeData.passengerBonus), 'success')
-    
-    -- Check for level up
-    CheckLevelUp(src, citizenid, routeData.xpEarned)
-    
-    if Config.Debug.enabled then
-        print(string.format('[BUS SERVER] Route completed by %s: $%d, %d XP', 
-            playerName, finalPayment, routeData.xpEarned))
-    end
+    -- Calculate total payment with level bonus using async callback
+    GetPlayerLevelBonusAsync(citizenid, function(levelBonus)
+        local finalPayment = math.floor(routeData.totalPayment * levelBonus)
+        
+        -- Add money to player
+        Player.Functions.AddMoney(Config.PaymentSettings.defaultMethod, finalPayment, Config.PaymentSettings.paymentReason)
+        
+        -- Update database
+        UpdatePlayerStats(citizenid, playerName, routeData, finalPayment)
+        
+        -- Notify player
+        TriggerClientEvent('QBCore:Notify', src, string.format(Config.Messages.paymentReceived, 
+            finalPayment, routeData.routePayment, routeData.passengerBonus), 'success')
+        
+        -- Check for level up
+        CheckLevelUp(src, citizenid, routeData.xpEarned)
+        
+        if Config.Debug.enabled then
+            print(string.format('[BUS SERVER] Route completed by %s: $%d, %d XP, Level Bonus: %.2f', 
+                playerName, finalPayment, routeData.xpEarned, levelBonus))
+        end
+    end)
 end)
 
 -- Commands
@@ -199,23 +203,57 @@ end)
 
 -- Database functions
 function UpdatePlayerStats(citizenid, playerName, routeData, finalPayment)
-    -- Use stored procedure to update stats
-    exports.oxmysql:execute('CALL UpdateBusJobStats(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', {
-        citizenid,
-        playerName,
-        routeData.routePayment,
-        routeData.passengerBonus,
-        finalPayment,
-        routeData.passengersLoaded,
-        routeData.distanceTraveled,
+    -- Update player stats directly with SQL
+    exports.oxmysql:execute([[
+        UPDATE bus_jobs 
+        SET 
+            total_xp = total_xp + ?,
+            total_distance = total_distance + ?,
+            jobs_completed = jobs_completed + 1,
+            total_earnings = total_earnings + ?,
+            last_job_date = NOW(),
+            updated_at = NOW()
+        WHERE citizenid = ?
+    ]], {
         routeData.xpEarned,
-        routeData.completionTime,
-        routeData.routeName
+        routeData.distanceTraveled,
+        finalPayment,
+        citizenid
     }, function(result)
         if Config.Debug.enabled then
-            print(string.format('[BUS SERVER] Updated stats for %s', playerName))
+            print(string.format('[BUS SERVER] Updated stats for %s: +%d XP, +%.2f km, +$%d', 
+                playerName, routeData.xpEarned, routeData.distanceTraveled, finalPayment))
         end
+        
+        -- Insert job history record
+        InsertJobHistory(citizenid, playerName, routeData, finalPayment)
+        
+        -- Update leaderboard
+        UpdateLeaderboard(citizenid, playerName, routeData, finalPayment)
     end)
+end
+
+-- Insert job history record
+function InsertJobHistory(citizenid, playerName, routeData, finalPayment)
+    exports.oxmysql:execute([[
+        INSERT INTO bus_job_history 
+        (citizenid, player_name, route_name, base_payment, passenger_bonus, total_payment, 
+         passengers_loaded, distance_traveled, xp_earned, completion_time, completed_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    ]], {
+        citizenid, playerName, routeData.routeName, routeData.routePayment, 
+        routeData.passengerBonus, finalPayment, routeData.passengersLoaded, 
+        routeData.distanceTraveled, routeData.xpEarned, routeData.completionTime
+    })
+end
+
+-- Update leaderboard
+function UpdateLeaderboard(citizenid, playerName, routeData, finalPayment)
+    -- This would update the leaderboard tables
+    -- For now, we'll just log it
+    if Config.Debug.enabled then
+        print(string.format('[BUS SERVER] Leaderboard update for %s: Route %s completed', playerName, routeData.routeName))
+    end
 end
 
 function LoadLeaderboardData(src)
@@ -250,20 +288,22 @@ function GetPlayerTitle(level)
     return 'Unknown Driver'
 end
 
-function GetPlayerLevelBonus(citizenid)
+-- Get player level bonus with callback (for async operations)
+function GetPlayerLevelBonusAsync(citizenid, callback)
     exports.oxmysql:execute('SELECT current_level FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
+        local levelBonus = 1.0 -- Default bonus
         if result and result[1] then
             local level = result[1].current_level
             if Config.Leveling.levels[level] then
-                return Config.Leveling.levels[level].bonus
+                levelBonus = Config.Leveling.levels[level].bonus
             end
         end
-        return 1.0 -- Default bonus
+        callback(levelBonus)
     end)
-    return 1.0 -- Fallback
 end
 
 function CheckLevelUp(src, citizenid, xpEarned)
+    -- Get current stats after XP has been added
     exports.oxmysql:execute('SELECT total_xp, current_level FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
         if result and result[1] then
             local currentXP = result[1].total_xp
@@ -412,3 +452,15 @@ AddEventHandler('onResourceStop', function(resourceName)
         end
     end
 end)
+
+-- Create new player record
+function CreateNewPlayerRecord(citizenid, playerName)
+    exports.oxmysql:execute('INSERT INTO bus_jobs (citizenid, player_name, total_xp, current_level, total_distance, jobs_completed, total_earnings) VALUES (?, ?, 0, 1, 0.00, 0, 0.00)', {
+        citizenid, playerName
+    }, function(result)
+        if Config.Debug.enabled then
+            print(string.format('[BUS SERVER] Created new player record for %s', playerName))
+        end
+    end)
+end
+

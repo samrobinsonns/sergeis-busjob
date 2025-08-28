@@ -1,5 +1,7 @@
 -- Bus Jobs Database Structure
 -- This file contains all the SQL needed to set up the bus jobs system
+-- Note: The stored procedures at the bottom are not used by the Lua code
+-- All database operations are handled directly in the Lua code for simplicity
 
 -- Create the bus_jobs table to store player statistics
 CREATE TABLE IF NOT EXISTS `bus_jobs` (
@@ -54,18 +56,8 @@ CREATE TABLE IF NOT EXISTS `bus_leaderboard` (
     KEY `period_rank` (`period`, `period_start`, `rank`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Insert default level configuration (can be modified in config)
-INSERT INTO `bus_levels` (`level`, `xp_required`, `title`, `bonus_multiplier`) VALUES
-(1, 0, 'Rookie Driver', 1.0),
-(2, 100, 'Novice Driver', 1.05),
-(3, 300, 'Experienced Driver', 1.1),
-(4, 600, 'Skilled Driver', 1.15),
-(5, 1000, 'Professional Driver', 1.2),
-(6, 1500, 'Expert Driver', 1.25),
-(7, 2100, 'Master Driver', 1.3),
-(8, 2800, 'Elite Driver', 1.35),
-(9, 3600, 'Legendary Driver', 1.4),
-(10, 4500, 'Bus Driving Champion', 1.5);
+-- Note: Level configuration is handled in config.lua
+-- The Config.Leveling.levels table contains all level information
 
 -- Create indexes for better performance
 CREATE INDEX idx_bus_jobs_citizenid ON bus_jobs(citizenid);
