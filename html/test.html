@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Driving System - UI Test</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Test-specific styles */
+        .test-controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .test-controls h3 {
+            margin: 0 0 15px 0;
+            color: #4ade80;
+        }
+        
+        .test-button {
+            background: #4ade80;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .test-button:hover {
+            background: #22c55e;
+        }
+        
+        .test-button.secondary {
+            background: #6b7280;
+        }
+        
+        .test-button.secondary:hover {
+            background: #4b5563;
+        }
+        
+        .test-info {
+            font-size: 12px;
+            margin-top: 15px;
+            color: #9ca3af;
+        }
+        
+        .mock-data-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            z-index: 1000;
+            max-width: 300px;
+            font-size: 12px;
+        }
+        
+        .mock-data-display h3 {
+            margin: 0 0 15px 0;
+            color: #4ade80;
+        }
+        
+        .mock-data-item {
+            margin: 5px 0;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Test Controls -->
+    <div class="test-controls">
+        <h3>UI Test Controls</h3>
+        <button class="test-button" onclick="showRouteSelection()">Show Route Selection</button>
+        <button class="test-button" onclick="showRoute()">Show Active Route</button>
+        <button class="test-button" onclick="showStop()">Show Bus Stop</button>
+        <button class="test-button" onclick="showPayment()">Show Payment</button>
+        <button class="test-button" onclick="showMessage()">Show Message</button>
+        <button class="test-button" onclick="showHelp()">Show Help</button>
+        <button class="test-button secondary" onclick="hideAllUI()">Hide All UI</button>
+        <button class="test-button secondary" onclick="simulateRoute()">Simulate Full Route</button>
+        
+        <div class="test-info">
+            <p><strong>Current State:</strong> <span id="currentState">None</span></p>
+            <p><strong>Passenger Count:</strong> <span id="passengerCount">0</span></p>
+        </div>
+    </div>
+
+    <!-- Mock Data Display -->
+    <div class="mock-data-display">
+        <h3>Mock Data</h3>
+        <div class="mock-data-item">
+            <strong>Routes:</strong> 3 available
+        </div>
+        <div class="mock-data-item">
+            <strong>Current Stop:</strong> <span id="mockCurrentStop">-</span>
+        </div>
+        <div class="mock-data-item">
+            <strong>Total Stops:</strong> <span id="mockTotalStops">-</span>
+        </div>
+        <div class="mock-data-item">
+            <strong>Route Progress:</strong> <span id="mockProgress">-</span>
+        </div>
+    </div>
+
+    <!-- Route Selection UI -->
+    <div id="routeSelectionUI" class="ui-container hidden">
+        <div class="route-selection-header">
+            <h2>Select a Bus Route</h2>
+            <p>Choose your route and start driving!</p>
+        </div>
+        
+        <div class="route-list" id="routeList">
+            <!-- Routes will be populated here -->
+        </div>
+        
+        <div class="route-selection-footer">
+            <button id="closeRouteMenu" class="btn btn-secondary">Close Menu</button>
+            <p class="help-text">Use the target system at the bus depot</p>
+        </div>
+    </div>
+
+    <!-- Main Route UI -->
+    <div id="routeUI" class="ui-container hidden">
+        <div class="route-header">
+            <h2 id="routeName">Route Name</h2>
+            <div class="route-progress">
+                <span id="currentStop">1</span> / <span id="totalStops">5</span>
+            </div>
+        </div>
+        
+        <div class="route-info">
+            <div class="next-stop">
+                <h3>Next Stop:</h3>
+                <p id="nextStopName">Loading...</p>
+            </div>
+            
+            <div class="passenger-count">
+                <h3>Passengers:</h3>
+                <p id="passengerCount">0</p>
+            </div>
+        </div>
+        
+        <div class="route-instructions">
+            <p>Drive to the highlighted stop and <strong>stop completely</strong> to load passengers automatically</p>
+        </div>
+    </div>
+
+    <!-- Stop Information UI -->
+    <div id="stopUI" class="ui-container hidden">
+        <div class="stop-header">
+            <h3>Bus Stop</h3>
+        </div>
+        
+        <div class="stop-info">
+            <h4 id="stopName">Stop Name</h4>
+            <p>Passengers loading automatically...</p>
+        </div>
+        
+        <div class="stop-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="stopProgress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment UI -->
+    <div id="paymentUI" class="ui-container hidden">
+        <div class="payment-header">
+            <h2>Route Complete!</h2>
+        </div>
+        
+        <div class="payment-details">
+            <div class="payment-item">
+                <span>Base Payment:</span>
+                <span id="basePayment">$0</span>
+            </div>
+            
+            <div class="payment-item">
+                <span>Passenger Bonus:</span>
+                <span id="passengerBonus">$0</span>
+            </div>
+            
+            <div class="payment-item total">
+                <span>Total Earnings:</span>
+                <span id="totalPayment">$0</span>
+            </div>
+            
+            <div class="passenger-summary">
+                <p>Total Passengers: <span id="totalPassengers">0</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message UI -->
+    <div id="messageUI" class="ui-container hidden">
+        <div class="message-content">
+            <h3 id="messageText">Message</h3>
+        </div>
+    </div>
+
+    <!-- Help UI -->
+    <div id="helpUI" class="ui-container hidden">
+        <div class="help-header">
+            <h3>Bus Driving Help</h3>
+        </div>
+        
+        <div class="help-content">
+            <ul id="helpList">
+                <!-- Help items will be populated here -->
+            </ul>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Mock data for testing
+        const mockRoutes = [
+            {
+                name: "Downtown Express",
+                stops: [
+                    {x: 200.0, y: -800.0, z: 30.0, name: "Downtown Central"},
+                    {x: 300.0, y: -900.0, z: 30.0, name: "Shopping District"},
+                    {x: 400.0, y: -1000.0, z: 30.0, name: "Residential Area"},
+                    {x: 500.0, y: -1100.0, z: 30.0, name: "Business Park"}
+                ],
+                basePayment: 150
+            },
+            {
+                name: "Airport Shuttle",
+                stops: [
+                    {x: 800.0, y: -1200.0, z: 30.0, name: "Airport Terminal 1"},
+                    {x: 900.0, y: -1300.0, z: 30.0, name: "Airport Terminal 2"},
+                    {x: 1000.0, y: -1400.0, z: 30.0, name: "Airport Parking"}
+                ],
+                basePayment: 200
+            },
+            {
+                name: "Beach Route",
+                stops: [
+                    {x: -1200.0, y: -1500.0, z: 4.0, name: "Beach Boardwalk"},
+                    {x: -1300.0, y: -1600.0, z: 4.0, name: "Beach Resort"},
+                    {x: -1400.0, y: -1700.0, z: 4.0, name: "Beach Pier"}
+                ],
+                basePayment: 120
+            }
+        ];
+
+        let currentPassengerCount = 0;
+        let currentRoute = null;
+        let currentStop = 1;
+
+        // Test functions
+        function showRouteSelection() {
+            hideAllUI();
+            updateCurrentState('Route Selection');
+            
+            // Populate routes
+            const routeList = document.getElementById('routeList');
+            routeList.innerHTML = '';
+            
+            mockRoutes.forEach((route, index) => {
+                const routeItem = document.createElement('div');
+                routeItem.className = 'route-item';
+                
+                routeItem.innerHTML = `
+                    <div class="route-item-header">
+                        <div class="route-item-name">${route.name}</div>
+                        <div class="route-item-payment">$${route.basePayment}</div>
+                    </div>
+                    <div class="route-item-details">
+                        ${route.stops.length} stops • ${route.stops.map(stop => stop.name).join(' → ')}
+                    </div>
+                    <div class="route-item-stops">
+                        <span>Stops: ${route.stops.length}</span>
+                        <span>Base Pay: $${route.basePayment}</span>
+                    </div>
+                    <button class="route-item-button" onclick="startMockRoute(${index})">
+                        Start Route
+                    </button>
+                `;
+                
+                routeList.appendChild(routeItem);
+            });
+            
+            document.getElementById('routeSelectionUI').classList.remove('hidden');
+        }
+
+        function startMockRoute(routeIndex) {
+            currentRoute = mockRoutes[routeIndex];
+            currentStop = 1;
+            currentPassengerCount = 0;
+            updateMockData();
+            showRoute();
+        }
+
+        function showRoute() {
+            if (!currentRoute) return;
+            
+            hideAllUI();
+            updateCurrentState('Active Route');
+            
+            document.getElementById('routeName').textContent = currentRoute.name;
+            document.getElementById('currentStop').textContent = currentStop;
+            document.getElementById('totalStops').textContent = currentRoute.stops.length;
+            document.getElementById('nextStopName').textContent = currentRoute.stops[currentStop - 1].name;
+            document.getElementById('passengerCount').textContent = currentPassengerCount;
+            
+            document.getElementById('routeUI').classList.remove('hidden');
+        }
+
+        function showStop() {
+            if (!currentRoute) return;
+            
+            hideAllUI();
+            updateCurrentState('Bus Stop');
+            
+            document.getElementById('stopName').textContent = currentRoute.stops[currentStop - 1].name;
+            
+            // Calculate progress
+            const progress = (currentStop / currentRoute.stops.length) * 100;
+            document.getElementById('stopProgress').style.width = progress + '%';
+            
+            document.getElementById('stopUI').classList.remove('hidden');
+        }
+
+        function showPayment() {
+            hideAllUI();
+            updateCurrentState('Payment');
+            
+            const basePayment = currentRoute ? currentRoute.basePayment : 150;
+            const passengerBonus = currentPassengerCount * 5;
+            const totalPayment = basePayment + passengerBonus;
+            
+            document.getElementById('basePayment').textContent = `$${basePayment}`;
+            document.getElementById('passengerBonus').textContent = `$${passengerBonus}`;
+            document.getElementById('totalPayment').textContent = `$${totalPayment}`;
+            document.getElementById('totalPassengers').textContent = currentPassengerCount;
+            
+            document.getElementById('paymentUI').classList.remove('hidden');
+        }
+
+        function showMessage() {
+            hideAllUI();
+            updateCurrentState('Message');
+            
+            document.getElementById('messageText').textContent = 'This is a test message for UI development!';
+            document.getElementById('messageUI').classList.remove('hidden');
+        }
+
+        function showHelp() {
+            hideAllUI();
+            updateCurrentState('Help');
+            
+            const helpList = document.getElementById('helpList');
+            helpList.innerHTML = '';
+            
+            const helpText = [
+                'Go to the bus depot and use the target to start a route',
+                'Drive to each stop and wait for passengers to load automatically',
+                'Complete the route and return to depot for payment',
+                'Use /endbus to end current route early'
+            ];
+            
+            helpText.forEach(text => {
+                const li = document.createElement('li');
+                li.textContent = text;
+                helpList.appendChild(li);
+            });
+            
+            document.getElementById('helpUI').classList.remove('hidden');
+        }
+
+        function hideAllUI() {
+            document.querySelectorAll('.ui-container').forEach(ui => {
+                ui.classList.add('hidden');
+            });
+            updateCurrentState('None');
+        }
+
+        function simulateRoute() {
+            // Simulate a complete route experience
+            showRouteSelection();
+            
+            setTimeout(() => {
+                startMockRoute(0); // Start Downtown Express
+                
+                setTimeout(() => {
+                    showStop();
+                    
+                    setTimeout(() => {
+                        // Simulate passenger loading
+                        currentPassengerCount += 5;
+                        currentStop++;
+                        updateMockData();
+                        
+                        setTimeout(() => {
+                            showStop();
+                            
+                            setTimeout(() => {
+                                currentPassengerCount += 4;
+                                currentStop++;
+                                updateMockData();
+                                
+                                setTimeout(() => {
+                                    showStop();
+                                    
+                                    setTimeout(() => {
+                                        currentPassengerCount += 6;
+                                        currentStop++;
+                                        updateMockData();
+                                        
+                                        setTimeout(() => {
+                                            showStop();
+                                            
+                                            setTimeout(() => {
+                                                currentPassengerCount += 3;
+                                                currentStop++;
+                                                updateMockData();
+                                                
+                                                setTimeout(() => {
+                                                    showPayment();
+                                                }, 1000);
+                                            }, 2000);
+                                        }, 2000);
+                                    }, 2000);
+                                }, 2000);
+                            }, 2000);
+                        }, 2000);
+                    }, 2000);
+                }, 2000);
+            }, 1000);
+        }
+
+        function updateCurrentState(state) {
+            document.getElementById('currentState').textContent = state;
+        }
+
+        function updateMockData() {
+            document.getElementById('mockCurrentStop').textContent = currentStop;
+            document.getElementById('mockTotalStops').textContent = currentRoute ? currentRoute.stops.length : '-';
+            document.getElementById('mockProgress').textContent = currentRoute ? `${Math.round((currentStop / currentRoute.stops.length) * 100)}%` : '-';
+            document.getElementById('passengerCount').textContent = currentPassengerCount;
+        }
+
+        // Close route menu button
+        document.getElementById('closeRouteMenu').addEventListener('click', function() {
+            hideAllUI();
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCurrentState('None');
+            updateMockData();
+        });
+    </script>
+</body>
+</html>

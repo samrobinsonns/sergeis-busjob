@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Driving Dashboard - Test</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Test-specific styles */
+        .test-controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .test-controls h3 {
+            margin: 0 0 15px 0;
+            color: #4ade80;
+        }
+        
+        .test-button {
+            background: #4ade80;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .test-button:hover {
+            background: #22c55e;
+        }
+        
+        .test-button.secondary {
+            background: #6b7280;
+        }
+        
+        .test-button.secondary:hover {
+            background: #4b5563;
+        }
+        
+        .test-info {
+            font-size: 12px;
+            margin-top: 15px;
+            color: #9ca3af;
+        }
+        
+        .mock-data-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            z-index: 1000;
+            max-width: 300px;
+            font-size: 12px;
+        }
+        
+        .mock-data-display h3 {
+            margin: 0 0 15px 0;
+            color: #4ade80;
+        }
+        
+        .mock-data-item {
+            margin: 5px 0;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Test Controls -->
+    <div class="test-controls">
+        <h3>Dashboard Test Controls</h3>
+        <button class="test-button" onclick="showDashboard()">Show Dashboard</button>
+        <button class="test-button" onclick="switchTab('dashboard')">Dashboard Tab</button>
+        <button class="test-button" onclick="switchTab('routes')">Routes Tab</button>
+        <button class="test-button" onclick="switchTab('leaderboard')">Leaderboard Tab</button>
+        <button class="test-button secondary" onclick="hideDashboard()">Hide Dashboard</button>
+        <button class="test-button secondary" onclick="simulateRoute()">Simulate Route</button>
+        
+        <div class="test-info">
+            <p><strong>Current Tab:</strong> <span id="currentTab">Dashboard</span></p>
+            <p><strong>Player Level:</strong> <span id="playerLevel">6</span></p>
+        </div>
+    </div>
+
+    <!-- Mock Data Display -->
+    <div class="mock-data-display">
+        <h3>Mock Data</h3>
+        <div class="mock-data-item">
+            <strong>Routes:</strong> 3 available
+        </div>
+        <div class="mock-data-item">
+            <strong>Leaderboard:</strong> Weekly/Monthly/Global
+        </div>
+        <div class="mock-data-item">
+            <strong>Player Stats:</strong> Level 6, 1800 XP
+        </div>
+        <div class="mock-data-item">
+            <strong>Database:</strong> SQL structure ready
+        </div>
+    </div>
+
+    <!-- iPad Device Frame -->
+    <div class="ipad-frame">
+        <div class="ipad-screen">
+            <!-- Main Dashboard Container -->
+            <div id="dashboardContainer" class="dashboard-container hidden">
+                <!-- Top Bar -->
+                <div class="top-bar">
+                    <div class="top-stats">
+                        <div class="stat-item">
+                            <i class="fas fa-arrow-up"></i>
+                            <span id="playerLevel">Level 6</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-star"></i>
+                            <span id="playerXP">1800 XP</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-dollar-sign"></i>
+                            <span id="playerCash">$24.5K</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-road"></i>
+                            <span id="playerDistance">320.4 km</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-briefcase"></i>
+                            <span id="playerJobs">9 jobs</span>
+                        </div>
+                    </div>
+                    <button id="closeDashboard" class="close-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Navigation Sidebar -->
+                <div class="navigation-sidebar">
+                    <div class="nav-header">
+                        <h3>Navigation</h3>
+                    </div>
+                    <nav class="nav-menu">
+                        <div class="nav-item active" data-tab="dashboard">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Dashboard</span>
+                        </div>
+                        <div class="nav-item" data-tab="routes">
+                            <i class="fas fa-route"></i>
+                            <span>Routes</span>
+                        </div>
+                        <div class="nav-item" data-tab="leaderboard">
+                            <i class="fas fa-trophy"></i>
+                            <span>Leaderboard</span>
+                        </div>
+                    </nav>
+                    <div class="user-status">
+                        <div class="status-item">
+                            <i class="fas fa-user"></i>
+                            <span id="playerTitle">Expert Driver</span>
+                        </div>
+                        <div class="status-item online">
+                            <i class="fas fa-circle"></i>
+                            <span>Online</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="main-content">
+                    <!-- Dashboard Tab -->
+                    <div id="dashboardTab" class="content-tab active">
+                        <div class="dashboard-header">
+                            <h2>Dashboard</h2>
+                            <p>Welcome back, driver! Here's your current progress.</p>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <!-- Distance Driven Card -->
+                            <div class="stat-card blue">
+                                <div class="stat-icon">
+                                    <i class="fas fa-car"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="dashboardDistance">320.4 km</div>
+                                    <div class="stat-label">Distance Driven</div>
+                                    <div class="stat-change positive" id="distanceChange">↑ +21% this week</div>
+                                </div>
+                            </div>
+
+                            <!-- Total Earnings Card -->
+                            <div class="stat-card green">
+                                <div class="stat-icon">
+                                    <i class="fas fa-dollar-sign"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="dashboardEarnings">$24.5K</div>
+                                    <div class="stat-label">Total Earnings</div>
+                                    <div class="stat-change positive" id="earningsChange">↑ +8% this week</div>
+                                </div>
+                            </div>
+
+                            <!-- Jobs Completed Card -->
+                            <div class="stat-card orange">
+                                <div class="stat-icon">
+                                    <i class="fas fa-clipboard-check"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="dashboardJobs">9</div>
+                                    <div class="stat-label">Jobs Completed</div>
+                                    <div class="stat-change positive" id="jobsChange">↑ +2 this week</div>
+                                </div>
+                            </div>
+
+                            <!-- Current Level Card -->
+                            <div class="stat-card blue">
+                                <div class="stat-icon">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="dashboardLevel">6</div>
+                                    <div class="stat-label">Current Level</div>
+                                    <div class="stat-change positive" id="levelProgress">↑ Next: -75%</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Experience Progress Card -->
+                        <div class="experience-card">
+                            <div class="exp-left">
+                                <div class="exp-total" id="expTotal">1800</div>
+                                <div class="exp-label">TOTAL XP</div>
+                            </div>
+                            <div class="exp-center">
+                                <div class="exp-bar-container">
+                                    <div class="exp-bar-fill" id="expBarFill" style="width: 75%"></div>
+                                </div>
+                                <div class="exp-progress-text" id="expProgressText">1800 / 2100 XP</div>
+                            </div>
+                            <div class="exp-right">
+                                <div class="exp-level" id="expLevel">Level 6</div>
+                                <div class="exp-to-next" id="expToNext">300</div>
+                                <div class="exp-to-next-label">XP TO LEVEL</div>
+                                <div class="exp-next-level" id="expNextLevel">7</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Routes Tab -->
+                    <div id="routesTab" class="content-tab">
+                        <div class="routes-header">
+                            <h2>Available Routes</h2>
+                            <p>Select a route to begin your journey.</p>
+                        </div>
+                        
+                        <div class="routes-grid" id="routesGrid">
+                            <!-- Routes will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Leaderboard Tab -->
+                    <div id="leaderboardTab" class="content-tab">
+                        <div class="leaderboard-header">
+                            <h2>Leaderboard</h2>
+                            <div class="leaderboard-tabs">
+                                <button class="leaderboard-tab active" data-period="weekly">Weekly</button>
+                                <button class="leaderboard-tab" data-period="monthly">Monthly</button>
+                                <button class="leaderboard-tab" data-period="global">Global</button>
+                            </div>
+                        </div>
+                        
+                        <div class="leaderboard-content">
+                            <div class="leaderboard-table">
+                                <div class="table-header">
+                                    <div class="header-rank">Rank</div>
+                                    <div class="header-player">Player</div>
+                                    <div class="header-level">Level</div>
+                                    <div class="header-xp">XP</div>
+                                    <div class="header-jobs">Jobs</div>
+                                    <div class="header-earnings">Earnings</div>
+                                </div>
+                                <div class="table-body" id="leaderboardBody">
+                                    <!-- Leaderboard entries will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock data for testing
+        const mockRoutes = [
+            {
+                name: "Downtown Express",
+                stops: [
+                    {x: 200.0, y: -800.0, z: 30.0, name: "Downtown Central"},
+                    {x: 300.0, y: -900.0, z: 30.0, name: "Shopping District"},
+                    {x: 400.0, y: -1000.0, z: 30.0, name: "Residential Area"},
+                    {x: 500.0, y: -1100.0, z: 30.0, name: "Business Park"}
+                ],
+                basePayment: 150,
+                baseXP: 50,
+                distanceMultiplier: 0.1
+            },
+            {
+                name: "Airport Shuttle",
+                stops: [
+                    {x: 800.0, y: -1200.0, z: 30.0, name: "Airport Terminal 1"},
+                    {x: 900.0, y: -1300.0, z: 30.0, name: "Airport Terminal 2"},
+                    {x: 1000.0, y: -1400.0, z: 30.0, name: "Airport Parking"}
+                ],
+                basePayment: 200,
+                baseXP: 75,
+                distanceMultiplier: 0.15
+            },
+            {
+                name: "Beach Route",
+                stops: [
+                    {x: -1200.0, y: -1500.0, z: 4.0, name: "Beach Boardwalk"},
+                    {x: -1300.0, y: -1600.0, z: 4.0, name: "Beach Resort"},
+                    {x: -1400.0, y: -1700.0, z: 4.0, name: "Beach Pier"}
+                ],
+                basePayment: 120,
+                baseXP: 40,
+                distanceMultiplier: 0.08
+            }
+        ];
+
+        const mockLeaderboard = {
+            weekly: [
+                {rank: 1, playerName: "John Driver", level: 8, xp: 2800, jobs: 15, earnings: 3500},
+                {rank: 2, playerName: "Sarah Bus", level: 7, xp: 2500, jobs: 12, earnings: 3000},
+                {rank: 3, playerName: "Mike Route", level: 6, xp: 2200, jobs: 10, earnings: 2800}
+            ],
+            monthly: [
+                {rank: 1, playerName: "John Driver", level: 8, xp: 2800, jobs: 45, earnings: 10500},
+                {rank: 2, playerName: "Sarah Bus", level: 7, xp: 2500, jobs: 38, earnings: 9200},
+                {rank: 3, playerName: "Mike Route", level: 6, xp: 2200, jobs: 32, earnings: 7800}
+            ],
+            global: [
+                {rank: 1, playerName: "John Driver", level: 8, xp: 2800, jobs: 156, earnings: 35600},
+                {rank: 2, playerName: "Sarah Bus", level: 7, xp: 2500, jobs: 142, earnings: 32400},
+                {rank: 3, playerName: "Mike Route", level: 6, xp: 2200, jobs: 128, earnings: 29800}
+            ]
+        };
+
+        let currentTab = 'dashboard';
+
+        // Test functions
+        function showDashboard() {
+            document.getElementById('dashboardContainer').classList.remove('hidden');
+            document.querySelector('.ipad-frame').style.display = 'block';
+            loadRoutesData();
+            loadLeaderboardData();
+        }
+
+        function hideDashboard() {
+            document.getElementById('dashboardContainer').classList.add('hidden');
+            document.querySelector('.ipad-frame').style.display = 'none';
+        }
+
+        function switchTab(tabName) {
+            // Hide all content tabs
+            document.querySelectorAll('.content-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            const selectedTab = document.getElementById(tabName + 'Tab');
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+
+            // Update navigation active state
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-tab') === tabName) {
+                    item.classList.add('active');
+                }
+            });
+
+            currentTab = tabName;
+            document.getElementById('currentTab').textContent = tabName.charAt(0).toUpperCase() + tabName.slice(1);
+
+            // Load tab-specific content
+            switch (tabName) {
+                case 'routes':
+                    loadRoutesData();
+                    break;
+                case 'leaderboard':
+                    loadLeaderboardData();
+                    break;
+            }
+        }
+
+        function loadRoutesData() {
+            const routesGrid = document.getElementById('routesGrid');
+            if (!routesGrid) return;
+            
+            routesGrid.innerHTML = '';
+            
+            mockRoutes.forEach((route, index) => {
+                const routeCard = createRouteCard(route, index);
+                routesGrid.appendChild(routeCard);
+            });
+        }
+
+        function createRouteCard(route, index) {
+            const card = document.createElement('div');
+            card.className = 'route-card';
+            
+            const stopsList = route.stops.map(stop => stop.name).join(' → ');
+            
+            card.innerHTML = `
+                <div class="route-header">
+                    <div class="route-name">${route.name}</div>
+                    <div class="route-payment">$${route.basePayment}</div>
+                </div>
+                <div class="route-details">
+                    ${route.stops.length} stops • ${stopsList}
+                </div>
+                <div class="route-stops">
+                    <span>Stops: ${route.stops.length}</span>
+                    <span>Base Pay: $${route.basePayment}</span>
+                </div>
+                <button class="route-button" onclick="startMockRoute(${index})">
+                    Start Route
+                </button>
+            `;
+            
+            return card;
+        }
+
+        function startMockRoute(routeIndex) {
+            const route = mockRoutes[routeIndex];
+            if (!route) return;
+            
+            alert(`Starting route: ${route.name}\nThis would normally spawn a bus and begin the route in FiveM.`);
+        }
+
+        function loadLeaderboardData() {
+            const leaderboardBody = document.getElementById('leaderboardBody');
+            if (!leaderboardBody) return;
+            
+            // Get current period
+            const activePeriod = document.querySelector('.leaderboard-tab.active');
+            const period = activePeriod ? activePeriod.getAttribute('data-period') : 'weekly';
+            
+            const data = mockLeaderboard[period] || [];
+            populateLeaderboard(data);
+        }
+
+        function populateLeaderboard(data) {
+            const leaderboardBody = document.getElementById('leaderboardBody');
+            if (!leaderboardBody) return;
+            
+            leaderboardBody.innerHTML = '';
+            
+            if (data.length === 0) {
+                leaderboardBody.innerHTML = '<div class="no-data">No data available</div>';
+                return;
+            }
+            
+            data.forEach((entry, index) => {
+                const row = document.createElement('div');
+                row.className = 'leaderboard-entry';
+                
+                row.innerHTML = `
+                    <div class="rank">#${entry.rank}</div>
+                    <div class="player-name">${entry.playerName}</div>
+                    <div class="level">${entry.level}</div>
+                    <div class="xp">${entry.xp.toLocaleString()}</div>
+                    <div class="jobs">${entry.jobs}</div>
+                    <div class="earnings">$${entry.earnings.toLocaleString()}</div>
+                `;
+                
+                leaderboardBody.appendChild(row);
+            });
+        }
+
+        function simulateRoute() {
+            showDashboard();
+            switchTab('routes');
+            
+            setTimeout(() => {
+                alert('Route simulation complete! Check the Routes tab to see available routes.');
+            }, 1000);
+        }
+
+        // Setup leaderboard tab switching
+        document.addEventListener('DOMContentLoaded', function() {
+            const leaderboardTabs = document.querySelectorAll('.leaderboard-tab');
+            leaderboardTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Update active tab
+                    leaderboardTabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Load data for selected period
+                    const period = this.getAttribute('data-period');
+                    const data = mockLeaderboard[period] || [];
+                    populateLeaderboard(data);
+                });
+            });
+
+            // Close dashboard button
+            const closeBtn = document.getElementById('closeDashboard');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', hideDashboard);
+            }
+
+            // Navigation items
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const tab = this.getAttribute('data-tab');
+                    switchTab(tab);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
