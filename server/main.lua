@@ -35,8 +35,8 @@ AddEventHandler('bus:getPlayerStats', function()
     local citizenid = Player.PlayerData.citizenid
     local playerName = Player.PlayerData.name
     
-    -- Get player stats from database
-    MySQL.query('SELECT * FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
+    -- Get player stats from database using oxmysql
+    exports.oxmysql:execute('SELECT * FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
         local stats = {
             level = 1,
             xp = 0,
@@ -156,7 +156,7 @@ QBCore.Commands.Add(Config.Commands.giveMoney, 'Give money to player (Admin Only
     TargetPlayer.Functions.AddMoney(Config.PaymentSettings.defaultMethod, amount, Config.PaymentSettings.adminGiftReason)
     
     -- Update database stats
-    MySQL.query('UPDATE bus_jobs SET total_earnings = total_earnings + ? WHERE citizenid = ?', 
+    exports.oxmysql:execute('UPDATE bus_jobs SET total_earnings = total_earnings + ? WHERE citizenid = ?', 
         {amount, TargetPlayer.PlayerData.citizenid})
     
     -- Notify both players
@@ -185,7 +185,7 @@ QBCore.Commands.Add(Config.Commands.stats, 'Show your bus job statistics', {}, f
     
     local citizenid = Player.PlayerData.citizenid
     
-    MySQL.query('SELECT * FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
+    exports.oxmysql:execute('SELECT * FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
         if result and result[1] then
             local data = result[1]
             local stats = string.format('Level: %d | XP: %d | Jobs: %d | Distance: %.1f km | Earnings: $%d', 
@@ -200,7 +200,7 @@ end)
 -- Database functions
 function UpdatePlayerStats(citizenid, playerName, routeData, finalPayment)
     -- Use stored procedure to update stats
-    MySQL.query('CALL UpdateBusJobStats(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', {
+    exports.oxmysql:execute('CALL UpdateBusJobStats(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', {
         citizenid,
         playerName,
         routeData.routePayment,
@@ -220,15 +220,15 @@ end
 
 function LoadLeaderboardData(src)
     -- Load weekly leaderboard
-    MySQL.query('SELECT * FROM bus_leaderboard WHERE period = ? AND period_start = DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) ORDER BY rank LIMIT 10', 
+    exports.oxmysql:execute('SELECT * FROM bus_leaderboard WHERE period = ? AND period_start = DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) ORDER BY rank LIMIT 10', 
         {'weekly'}, function(weeklyResult)
         
         -- Load monthly leaderboard
-        MySQL.query('SELECT * FROM bus_leaderboard WHERE period = ? AND period_start = DATE_FORMAT(CURDATE(), "%Y-%m-01") ORDER BY rank LIMIT 10', 
+        exports.oxmysql:execute('SELECT * FROM bus_leaderboard WHERE period = ? AND period_start = DATE_FORMAT(CURDATE(), "%Y-%m-01") ORDER BY rank LIMIT 10', 
             {'monthly'}, function(monthlyResult)
             
             -- Load global leaderboard
-            MySQL.query('SELECT * FROM bus_leaderboard_current ORDER BY global_rank LIMIT 10', {}, function(globalResult)
+            exports.oxmysql:execute('SELECT * FROM bus_leaderboard_current ORDER BY global_rank LIMIT 10', {}, function(globalResult)
                 
                 local leaderboard = {
                     weekly = weeklyResult or {},
@@ -251,7 +251,7 @@ function GetPlayerTitle(level)
 end
 
 function GetPlayerLevelBonus(citizenid)
-    MySQL.query('SELECT current_level FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
+    exports.oxmysql:execute('SELECT current_level FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
         if result and result[1] then
             local level = result[1].current_level
             if Config.Leveling.levels[level] then
@@ -264,7 +264,7 @@ function GetPlayerLevelBonus(citizenid)
 end
 
 function CheckLevelUp(src, citizenid, xpEarned)
-    MySQL.query('SELECT total_xp, current_level FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
+    exports.oxmysql:execute('SELECT total_xp, current_level FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
         if result and result[1] then
             local currentXP = result[1].total_xp
             local currentLevel = result[1].current_level
@@ -273,7 +273,7 @@ function CheckLevelUp(src, citizenid, xpEarned)
             for level, levelData in pairs(Config.Leveling.levels) do
                 if level > currentLevel and currentXP >= levelData.xp then
                     -- Level up!
-                    MySQL.query('UPDATE bus_jobs SET current_level = ? WHERE citizenid = ?', {level, citizenid})
+                    exports.oxmysql:execute('UPDATE bus_jobs SET current_level = ? WHERE citizenid = ?', {level, citizenid})
                     
                     -- Notify player
                     TriggerClientEvent('QBCore:Notify', src, string.format(Config.Messages.levelUp, level, levelData.title), 'success')
@@ -373,7 +373,7 @@ end
 
 -- Export functions for external use
 exports('GetPlayerBusStats', function(citizenid)
-    local result = MySQL.query.await('SELECT * FROM bus_jobs WHERE citizenid = ?', {citizenid})
+    local result = exports.oxmysql:executeSync('SELECT * FROM bus_jobs WHERE citizenid = ?', {citizenid})
     if result and result[1] then
         return result[1]
     end
@@ -396,7 +396,7 @@ exports('GetBusLeaderboard', function(period, limit)
         params = {limit}
     end
     
-    local result = MySQL.query.await(query, params)
+    local result = exports.oxmysql:executeSync(query, params)
     return result or {}
 end)
 

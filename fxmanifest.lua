@@ -26,5 +26,6 @@ files {
 }
 
 dependencies {
-    'qb-core'
+    'qb-core',
+    'oxmysql'
 }
