@@ -8,9 +8,14 @@ window.addEventListener("message", function (event) {
   if (event.data.action === "open") {
     $("html,body").css("display", "flex").show();
     jobList = event.data.list || [];
-    progressStatus = event.data.xp
+    progressStatus = event.data.xp || 0;
     updateLevelUI(progressStatus);
-    loadModelData()
+    loadModelData();
+  } else if (event.data.action === "updateLevel") {
+    progressStatus = event.data.xp || 0;
+    playerLevel = event.data.level || 1;
+    updateLevelUI(progressStatus);
+    loadModelData(); // Reload to update job availability
   }
 });
 

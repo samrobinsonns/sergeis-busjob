@@ -5,7 +5,8 @@ local playerXP = {} -- Cache for player XP levels
 
 -- Function to get player XP (you'll need to implement database storage)
 function GetPlayerXP(source)
-    local identifier = Framework:GetPlayerIdentifier(Framework:GetPlayer(source))
+    local player = Framework:GetPlayer(source)
+    local identifier = Framework:GetPlayerIdentifier(player)
 
     if not identifier then return 0 end
 
@@ -27,7 +28,8 @@ end
 
 -- Function to set player XP
 function SetPlayerXP(source, xp)
-    local identifier = Framework:GetPlayerIdentifier(Framework:GetPlayer(source))
+    local player = Framework:GetPlayer(source)
+    local identifier = Framework:GetPlayerIdentifier(player)
 
     if not identifier then return end
 
@@ -78,13 +80,32 @@ RegisterNetEvent('sergeis-bus:server:completeJob', function(zoneIndex, jobIndex)
     local src = source
     local player = Framework:GetPlayer(src)
 
-    if not player then return end
+    if not player then
+        if shared.debug then
+            print("[DEBUG] Sergei Bus: Player not found for job completion")
+        end
+        return
+    end
 
     local zone = shared.BusJob[zoneIndex]
-    if not zone then return end
+    if not zone then
+        if shared.debug then
+            print("[DEBUG] Sergei Bus: Invalid zone index " .. zoneIndex)
+        end
+        return
+    end
 
     local job = zone.Jobs[jobIndex]
-    if not job then return end
+    if not job then
+        if shared.debug then
+            print("[DEBUG] Sergei Bus: Invalid job index " .. jobIndex)
+        end
+        return
+    end
+
+    if shared.debug then
+        print("[DEBUG] Sergei Bus: Processing job completion for " .. GetPlayerName(src) .. " - " .. job.name)
+    end
 
     -- Check if player meets level requirement
     local playerXP = GetPlayerXP(src)
@@ -92,6 +113,9 @@ RegisterNetEvent('sergeis-bus:server:completeJob', function(zoneIndex, jobIndex)
 
     if playerLevel < job.level then
         Framework:Notify(src, string.format("You need to be level %d to do this job!", job.level), "error")
+        if shared.debug then
+            print("[DEBUG] Sergei Bus: Player level check failed - Required: " .. job.level .. " Current: " .. playerLevel)
+        end
         return
     end
 
@@ -105,13 +129,16 @@ RegisterNetEvent('sergeis-bus:server:completeJob', function(zoneIndex, jobIndex)
     -- Check for level up
     if newLevel > playerLevel then
         Framework:Notify(src, string.format("🎉 Level Up! You are now level %d!", newLevel), "success")
+        if shared.debug then
+            print("[DEBUG] Sergei Bus: Player leveled up from " .. playerLevel .. " to " .. newLevel)
+        end
     end
 
     -- Send completion message
     Framework:Notify(src, string.format(shared.Locales["xpAndMoney"], job.totalPrice, job.xp), "success")
 
     if shared.debug then
-        print(string.format("Player %s completed bus job: +$%d, +%d XP", GetPlayerName(src), job.totalPrice, job.xp))
+        print("[DEBUG] Sergei Bus: Player " .. GetPlayerName(src) .. " completed " .. job.name .. ": +$" .. job.totalPrice .. ", +" .. job.xp .. " XP")
     end
 end)
 
@@ -224,21 +251,52 @@ end, false)
 
 -- Function to initialize database table if it doesn't exist
 Citizen.CreateThread(function()
-    Wait(1000) -- Wait for database connection
+    -- Wait for database connection with retry mechanism
+    local retries = 0
+    local maxRetries = 30 -- 30 seconds max
 
-    MySQL.query([[
-        CREATE TABLE IF NOT EXISTS `sergei_bus_xp` (
-            `id` int(11) NOT NULL AUTO_INCREMENT,
-            `identifier` varchar(50) NOT NULL,
-            `bus_xp` int(11) NOT NULL DEFAULT 0,
-            `last_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (`id`),
-            UNIQUE KEY `identifier` (`identifier`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-    ]])
+    while retries < maxRetries do
+        local success, result = pcall(function()
+            return MySQL.query('SELECT 1')
+        end)
 
-    if shared.debug then
-        print("Bus job database table initialized")
+        if success then
+            break
+        end
+
+        retries = retries + 1
+        Wait(1000)
+
+        if shared.debug then
+            print("Waiting for database connection... Attempt " .. retries .. "/" .. maxRetries)
+        end
+    end
+
+    if retries >= maxRetries then
+        print("^1[ERROR] Sergei Bus Job: Failed to connect to database after " .. maxRetries .. " attempts!^0")
+        return
+    end
+
+    -- Create table with error handling
+    local success, error = pcall(function()
+        MySQL.query([[
+            CREATE TABLE IF NOT EXISTS `sergei_bus_xp` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `identifier` varchar(50) NOT NULL,
+                `bus_xp` int(11) NOT NULL DEFAULT 0,
+                `last_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `identifier` (`identifier`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+        ]])
+    end)
+
+    if success then
+        if shared.debug then
+            print("^2[SUCCESS] Sergei Bus Job: Database table initialized^0")
+        end
+    else
+        print("^1[ERROR] Sergei Bus Job: Failed to create database table: " .. tostring(error) .. "^0")
     end
 end)
 

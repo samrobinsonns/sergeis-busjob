@@ -18,11 +18,20 @@ function OpenBusMenu()
     if menuOpened then return end
     menuOpened = true
 
+    if shared.debug then
+        print("[DEBUG] Sergei Bus: Opening bus menu for zone " .. tostring(currentZone))
+    end
+
     -- Open HTML interface
     SetNuiFocus(true, true)
+    -- Get player level from server
+    TriggerServerEvent('sergeis-bus:server:getPlayerLevel')
+
+    -- Send initial menu data
     SendNUIMessage({
-        action = "showMenu",
-        jobs = GetAvailableJobs()
+        action = "open",
+        list = GetAvailableJobs(),
+        xp = 0 -- Will be updated when server responds
     })
 end
 
@@ -37,10 +46,10 @@ function GetAvailableJobs()
                     index = jobIndex - 1, -- JavaScript 0-indexed
                     name = job.name,
                     level = job.level,
-                    xp = job.xp,
+                    giveXp = job.xp,
                     price = job.totalPrice,
                     imgSrc = job.imgSrc,
-                    stops = #job.stops
+                    stopcount = #job.stops
                 })
             end
             break
@@ -95,36 +104,77 @@ function StartBusJob(zoneIndex, jobIndex)
     local zone = shared.BusJob[zoneIndex]
     local job = zone.Jobs[jobIndex]
 
-    -- Check player level (you'd need to implement this based on your XP system)
-    -- For now, we'll skip level checks
+    -- Check player level with server
+    if shared.debug then
+        print("[DEBUG] Sergei Bus: Checking if player can do job zone:" .. zoneIndex .. " job:" .. jobIndex)
+    end
 
-    working = true
-    currentJob = {zoneIndex = zoneIndex, jobIndex = jobIndex}
-    currentRoute = job
-    currentStop = 1
+    lib.callback('sergeis-bus:server:canDoJob', false, function(canDoJob)
+        if not canDoJob then
+            Framework:Notify("You don't have the required level for this job!", "error")
+            if shared.debug then
+                print("[DEBUG] Sergei Bus: Player level check failed for job " .. jobIndex)
+            end
+            return
+        end
 
-    -- Spawn bus vehicle
-    SpawnBusVehicle(job.vehicles, job.start[1], job.start[2])
+        if shared.debug then
+            print("[DEBUG] Sergei Bus: Starting job " .. job.name .. " (Level " .. job.level .. ")")
+        end
 
-    -- Create route blips
-    CreateRouteBlips(job.stops)
+        working = true
+        currentJob = {zoneIndex = zoneIndex, jobIndex = jobIndex}
+        currentRoute = job
+        currentStop = 1
 
-    -- Set first destination
-    SetDestination(job.stops[1])
+        -- Spawn bus vehicle
+        if not SpawnBusVehicle(job.vehicles, job.start[1], job.start[2]) then
+            working = false
+            currentJob = nil
+            currentRoute = nil
+            currentStop = 1
+            return
+        end
 
-    Framework:Notify(shared.Locales["get_to_bus"], "success")
-end
+        -- Create route blips
+        CreateRouteBlips(job.stops)
+
+        -- Set first destination
+        SetDestination(job.stops[1])
+
+        Framework:Notify(shared.Locales["get_to_bus"], "success")
+    end, zoneIndex, jobIndex)
 
 -- Function to spawn bus vehicle
 function SpawnBusVehicle(model, coords, heading)
     local modelHash = GetHashKey(model)
 
+    -- Request model with timeout
     RequestModel(modelHash)
-    while not HasModelLoaded(modelHash) do
-        Wait(0)
+    local timeout = 0
+    while not HasModelLoaded(modelHash) and timeout < 100 do
+        Wait(10)
+        timeout = timeout + 1
+    end
+
+    if not HasModelLoaded(modelHash) then
+        Framework:Notify("Failed to load bus model: " .. model, "error")
+        return false
+    end
+
+    -- Check if spawn point is clear
+    if not Framework:SpawnClear(coords, 5.0) then
+        Framework:Notify("Spawn point is blocked!", "error")
+        return false
     end
 
     busVehicle = CreateVehicle(modelHash, coords.x, coords.y, coords.z, heading, true, false)
+
+    if not DoesEntityExist(busVehicle) then
+        Framework:Notify("Failed to spawn bus vehicle!", "error")
+        return false
+    end
+
     SetEntityAsMissionEntity(busVehicle, true, true)
 
     -- Set fuel if available
@@ -226,11 +276,24 @@ function CreatePassenger(coords)
     local modelHash = GetHashKey(pedModel)
 
     RequestModel(modelHash)
-    while not HasModelLoaded(modelHash) do
-        Wait(0)
+    local timeout = 0
+    while not HasModelLoaded(modelHash) and timeout < 100 do
+        Wait(10)
+        timeout = timeout + 1
+    end
+
+    if not HasModelLoaded(modelHash) then
+        Framework:Notify("Failed to load passenger model!", "error")
+        return
     end
 
     passengerPed = CreatePed(4, modelHash, coords.x, coords.y, coords.z - 1.0, coords.w, false, false)
+
+    if not DoesEntityExist(passengerPed) then
+        Framework:Notify("Failed to create passenger!", "error")
+        return
+    end
+
     SetEntityAsMissionEntity(passengerPed, true, true)
     FreezeEntityPosition(passengerPed, true)
     SetBlockingOfNonTemporaryEvents(passengerPed, true)
@@ -238,6 +301,10 @@ end
 
 -- Function when passenger boards
 function PassengerBoarded()
+    if shared.debug then
+        print("[DEBUG] Sergei Bus: Passenger boarded at stop " .. currentStop)
+    end
+
     if passengerPed then
         DeleteEntity(passengerPed)
         passengerPed = nil
@@ -248,16 +315,26 @@ function PassengerBoarded()
     if currentStop <= #currentRoute.stops then
         SetDestination(currentRoute.stops[currentStop])
         Framework:Notify(string.format(shared.Locales["remaining_stations"], #currentRoute.stops - currentStop + 1), "success")
+        if shared.debug then
+            print("[DEBUG] Sergei Bus: Next stop: " .. currentStop .. "/" .. #currentRoute.stops)
+        end
     else
         -- Head to end point
         SetDestination(currentRoute.ends)
         Framework:Notify(shared.Locales["back_to_the_station"], "success")
+        if shared.debug then
+            print("[DEBUG] Sergei Bus: All stops completed, heading to depot")
+        end
     end
 end
 
 -- Function to complete job
 function CompleteJob()
     if not working then return end
+
+    if shared.debug then
+        print("[DEBUG] Sergei Bus: Completing job - Zone: " .. currentJob.zoneIndex .. " Job: " .. currentJob.jobIndex)
+    end
 
     -- Award money and XP
     TriggerServerEvent('sergeis-bus:server:completeJob', currentJob.zoneIndex, currentJob.jobIndex)
@@ -267,7 +344,7 @@ function CompleteJob()
 end
 
 -- Function to end mission
-function endMission()
+function EndMission()
     if not working then return end
 
     working = false
@@ -356,7 +433,7 @@ function HandleDealerZone(coords)
             else
                 Draw3DText(coords.x, coords.y, coords.z + 0.4, shared.Locales["cancel_job"])
                 if IsControlJustReleased(0, 38) then
-                    endMission()
+                    EndMission()
                 end
             end
         end
@@ -409,7 +486,18 @@ RegisterNetEvent('sergeis-bus:client:sendNotifys', function(msg, tip)
     Framework:Notify(msg, tip)
 end)
 
+RegisterNetEvent('sergeis-bus:client:updatePlayerLevel', function(level, xp)
+    if menuOpened then
+        -- Update the NUI with actual player level
+        SendNUIMessage({
+            action = "updateLevel",
+            level = level,
+            xp = xp
+        })
+    end
+end)
+
 AddEventHandler('onResourceStop', function(resourceName)
     if (GetCurrentResourceName() ~= resourceName) then return end
-    endMission()
+    EndMission()
 end)

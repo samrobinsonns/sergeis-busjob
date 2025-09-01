@@ -124,7 +124,7 @@ for k, v in pairs(shared.BusJob) do
                         label = shared.Locales["cancel_job_target"],
                         icon = "fas fa-truck",
                         onSelect = function(data)
-                            endMission()
+                            EndMission()
                         end,
                         canInteract = function(entity, distance, data)
                             return working 
@@ -150,7 +150,7 @@ for k, v in pairs(shared.BusJob) do
                     },
                     {
                         action = function()
-                            endMission()
+                            EndMission()
                         end,
                         icon = 'fas fa-truck',
                         label = shared.Locales["cancel_job_target"],
@@ -206,7 +206,7 @@ function HandleDealerZone(_coords)
             else
                 Draw3DText(coords.x, coords.y, coords.z + 0.4, shared.Locales["cancel_job"])
                 if IsControlJustReleased(0, 38) then
-                    endMission()
+                    EndMission()
                 end
             end
         end
@@ -263,7 +263,7 @@ AddEventHandler('onResourceStop', function(resourceName)
     if (GetCurrentResourceName() ~= resourceName) then
       return
     end
-    endMission()
+    EndMission()
 end)
 
 AddEventHandler('onResourceStart', function(resourceName)
