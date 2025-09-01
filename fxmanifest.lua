@@ -1,31 +1,36 @@
-fx_version 'cerulean'
+fx_version 'adamant'
 game 'gta5'
+author 'Sergei Scripts'
+description 'sergei-bus.fivem.net'
+lua54 'yes'
 
-author 'Your Name'
-description 'Bus Driving Script with Route Management and Passenger System'
-version '1.0.0'
+shared_scripts {
+    '@ox_lib/init.lua',
+    'shared/shared.lua',
+}
 
 client_scripts {
-    'client/main.lua'
+    'shared/c_framework.lua',
+    'client/main.lua',
+    'client/ui.lua'
 }
 
 server_scripts {
+    '@oxmysql/lib/MySQL.lua',
+    'shared/s_framework.lua',
     'server/main.lua'
-}
-
-shared_scripts {
-    'config.lua'
 }
 
 ui_page 'html/index.html'
 
 files {
-    'html/index.html',
-    'html/style.css',
-    'html/script.js'
+    'html/images/*.*',
+    'html/images/**/*.*',
+    'html/font/*.*',
+    'html/*.*',    
 }
 
-dependencies {
-    'qb-core',
-    'oxmysql'
+escrow_ignore {
+    'shared/*.lua'
 }
+dependency '/assetpacks'

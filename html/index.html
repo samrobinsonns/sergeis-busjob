@@ -3,208 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bus Driving System</title>
+    <title>Bus Job by Savana</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="images/yt.png">
+    <script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-<HASH>" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
-    <!-- iPad Device Frame -->
-    <div class="ipad-frame">
-        <div class="ipad-screen">
-            <!-- Main Dashboard Container -->
-            <div id="dashboardContainer" class="dashboard-container hidden">
-                <!-- Top Bar -->
-                <div class="top-bar">
-                    <div class="top-stats">
-                        <div class="stat-item">
-                            <i class="fas fa-arrow-up"></i>
-                            <span id="playerLevel">Level 1</span>
-                        </div>
-                        <div class="stat-item">
-                            <i class="fas fa-star"></i>
-                            <span id="playerXP">0 XP</span>
-                        </div>
-                        <div class="stat-item">
-                            <i class="fas fa-dollar-sign"></i>
-                            <span id="playerCash">$0</span>
-                        </div>
-                        <div class="stat-item">
-                            <i class="fas fa-road"></i>
-                            <span id="playerDistance">0.0 km</span>
-                        </div>
-                        <div class="stat-item">
-                            <i class="fas fa-briefcase"></i>
-                            <span id="playerJobs">0 jobs</span>
-                        </div>
-                    </div>
-                    <button id="closeDashboard" class="close-btn">
-                        <i class="fas fa-times"></i>
-                    </button>
+    <div class="passenger">
+        <div class="phead">Number of Passengers</div>
+        <div class="pcount">ILK YOLCUYA GIT</div>
+    </div>
+    <div class="main">
+        <div class="topWrapper">
+            <div class="topWrapper-jobName">
+                <div class="iconLogo">
+                    <i class="fa-solid fa-truck"></i>
                 </div>
-
-                <!-- Navigation Sidebar -->
-                <div class="navigation-sidebar">
-                    <div class="nav-header">
-                        <h3>Navigation</h3>
+                <div class="jobText">BUS JOB</div>
+            </div>
+            <div class="rightTopWrapper">
+                <div class="topWrapper-close">
+                    <div class="closeText">
+                        Close Page
                     </div>
-                    <nav class="nav-menu">
-                        <div class="nav-item active" data-tab="dashboard">
-                            <i class="fas fa-tachometer-alt"></i>
-                            <span>Dashboard</span>
-                        </div>
-                        <div class="nav-item" data-tab="routes">
-                            <i class="fas fa-route"></i>
-                            <span>Routes</span>
-                        </div>
-                        <div class="nav-item" data-tab="leaderboard">
-                            <i class="fas fa-trophy"></i>
-                            <span>Leaderboard</span>
-                        </div>
-                    </nav>
-                    <div class="user-status">
-                        <div class="status-item">
-                            <i class="fas fa-user"></i>
-                            <span id="playerTitle">Rookie Driver</span>
-                        </div>
-                        <div class="status-item online">
-                            <i class="fas fa-circle"></i>
-                            <span>Online</span>
+                    <div class="closeIcon">
+                        <div class="Icon">
+                            <img src="images/iconamoon_close.png" alt="">
                         </div>
                     </div>
                 </div>
-
-                <!-- Main Content Area -->
-                <div class="main-content">
-                    <!-- Dashboard Tab -->
-                    <div id="dashboardTab" class="content-tab active">
-                        <div class="dashboard-header">
-                            <h2>Dashboard</h2>
-                            <p>Welcome back, driver! Here's your current progress.</p>
-                        </div>
-                        
-                        <div class="stats-grid">
-                            <!-- Distance Driven Card -->
-                            <div class="stat-card blue">
-                                <div class="stat-icon">
-                                    <i class="fas fa-car"></i>
-                                </div>
-                                <div class="stat-content">
-                                    <div class="stat-value" id="dashboardDistance">0.0 km</div>
-                                    <div class="stat-label">Distance Driven</div>
-                                    <div class="stat-change positive" id="distanceChange">↑ +0% this week</div>
-                                </div>
-                            </div>
-
-                            <!-- Total Earnings Card -->
-                            <div class="stat-card green">
-                                <div class="stat-icon">
-                                    <i class="fas fa-dollar-sign"></i>
-                                </div>
-                                <div class="stat-content">
-                                    <div class="stat-value" id="dashboardEarnings">$0</div>
-                                    <div class="stat-label">Total Earnings</div>
-                                    <div class="stat-change positive" id="earningsChange">↑ +0% this week</div>
-                                </div>
-                            </div>
-
-                            <!-- Jobs Completed Card -->
-                            <div class="stat-card orange">
-                                <div class="stat-icon">
-                                    <i class="fas fa-clipboard-check"></i>
-                                </div>
-                                <div class="stat-content">
-                                    <div class="stat-value" id="dashboardJobs">0</div>
-                                    <div class="stat-label">Jobs Completed</div>
-                                    <div class="stat-change positive" id="jobsChange">↑ +0 this week</div>
-                                </div>
-                            </div>
-
-                            <!-- Current Level Card -->
-                            <div class="stat-card blue">
-                                <div class="stat-icon">
-                                    <i class="fas fa-star"></i>
-                                </div>
-                                <div class="stat-content">
-                                    <div class="stat-value" id="dashboardLevel">1</div>
-                                    <div class="stat-label">Current Level</div>
-                                    <div class="stat-change positive" id="levelProgress">↑ Next: -100%</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Experience Progress Card -->
-                        <div class="experience-card">
-                            <div class="exp-left">
-                                <div class="exp-total" id="expTotal">0</div>
-                                <div class="exp-label">TOTAL XP</div>
-                            </div>
-                            <div class="exp-center">
-                                <div class="exp-bar-container">
-                                    <div class="exp-bar-fill" id="expBarFill"></div>
-                                </div>
-                                <div class="exp-progress-text" id="expProgressText">0 / 100 XP</div>
-                            </div>
-                            <div class="exp-right">
-                                <div class="exp-level" id="expLevel">Level 1</div>
-                                <div class="exp-to-next" id="expToNext">100</div>
-                                <div class="exp-to-next-label">XP TO LEVEL</div>
-                                <div class="exp-next-level" id="expNextLevel">2</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Routes Tab -->
-                    <div id="routesTab" class="content-tab">
-                        <div class="routes-header">
-                            <h2>Available Routes</h2>
-                            <p>Select a route to begin your journey.</p>
-                        </div>
-                        
-                        <div class="routes-grid" id="routesGrid">
-                            <!-- Routes will be populated here -->
-                        </div>
-                    </div>
-
-                    <!-- Leaderboard Tab -->
-                    <div id="leaderboardTab" class="content-tab">
-                        <div class="leaderboard-header">
-                            <h2>Leaderboard</h2>
-                            <div class="leaderboard-tabs">
-                                <button class="leaderboard-tab active" data-period="weekly">Weekly</button>
-                                <button class="leaderboard-tab" data-period="monthly">Monthly</button>
-                                <button class="leaderboard-tab" data-period="global">Global</button>
-                            </div>
-                        </div>
-                        
-                        <div class="leaderboard-content">
-                            <div class="leaderboard-table">
-                                <div class="table-header">
-                                    <div class="header-rank">Rank</div>
-                                    <div class="header-player">Player</div>
-                                    <div class="header-level">Level</div>
-                                    <div class="header-xp">XP</div>
-                                    <div class="header-jobs">Jobs</div>
-                                    <div class="header-earnings">Earnings</div>
-                                </div>
-                                <div class="table-body" id="leaderboardBody">
-                                    <!-- Leaderboard entries will be populated here -->
-                                </div>
-                            </div>
-                        </div>
+                <div class="level">
+                    <div class="levelText">17/100 Level 1</div>
+                    <div class="levelProg">
+                        <div class="levelStatus"></div>
                     </div>
                 </div>
             </div>
+         </div>
+        <div class="filter">
+            <div class="searchTrailer">
+                <div class="inputArea">
+                    <input type="text" id="trailerInput" placeholder="Search Bus...">
+                </div>
+                <div class="inputIcon">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+            </div>
+        </div>
+        <div class="listArea"></div>
+    </div>
+    <div class="popUp">
+        <div class="popUpText">
+            Do you agree to take the gasoline tanker job?
+        </div>
+        <div class="popUpButtons">
+            <div id="cancel">
+                <div class="cancelIcon">
+                    <img src="images/Refund_back.png" alt="">
+                </div>
+                <div class="cancelText">
+                    Cancel
+                </div>
+            </div>
+            <div id="confirm">
+                CONFIRM
+            </div>
         </div>
     </div>
-
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay hidden">
-        <div class="loading-spinner">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading...</p>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

@@ -1,466 +1,274 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+-- Savana Bus Job - Recreated Server Script
+-- Handles job completion, rewards, and XP system
 
--- Local variables
-local playerRouteAttempts = {}
-local playerRouteCooldowns = {}
+local playerXP = {} -- Cache for player XP levels
 
--- Initialize when resource starts
-Citizen.CreateThread(function()
-    -- Wait for QBCore to be ready
-    while not QBCore do
-        QBCore = exports['qb-core']:GetCoreObject()
-        Citizen.Wait(100)
-    end
-    
-    -- Clean up old route attempts every hour
-    Citizen.CreateThread(function()
-        while true do
-            Citizen.Wait(3600000) -- 1 hour
-            CleanupOldRouteAttempts()
-        end
-    end)
-    
-    if Config.Debug.enabled then
-        print('[BUS SERVER] Server initialized successfully')
-    end
-end)
+-- Function to get player XP (you'll need to implement database storage)
+function GetPlayerXP(source)
+    local identifier = Framework:GetPlayerIdentifier(Framework:GetPlayer(source))
 
--- Event handlers
-RegisterNetEvent('bus:getPlayerStats')
-AddEventHandler('bus:getPlayerStats', function()
-    local src = source
-    local Player = QBCore.Functions.GetPlayer(src)
-    if not Player then return end
-    
-    local citizenid = Player.PlayerData.citizenid
-    local playerName = Player.PlayerData.name
-    
-    -- Get player stats from database using oxmysql
-    exports.oxmysql:execute('SELECT * FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
-        local stats = {
-            level = 1,
-            xp = 0,
-            cash = Player.PlayerData.money.cash or 0,
-            distance = 0.0,
-            jobs = 0,
-            title = 'Rookie Driver'
-        }
-        
-        if result and result[1] then
-            local data = result[1]
-            stats.level = data.current_level
-            stats.xp = data.total_xp
-            stats.distance = data.total_distance
-            stats.jobs = data.jobs_completed
-            stats.title = GetPlayerTitle(data.current_level)
-        else
-            -- Create new player record if none exists
-            CreateNewPlayerRecord(citizenid, playerName)
-        end
-        
-        -- Send stats to client
-        TriggerClientEvent('bus:updatePlayerStats', src, stats)
-        
-        -- Send routes data
-        TriggerClientEvent('bus:updateRoutes', src, Config.Routes)
-        
-        -- Send leaderboard data
-        LoadLeaderboardData(src)
-    end)
-end)
+    if not identifier then return 0 end
 
-RegisterNetEvent('bus:checkRouteStart')
-AddEventHandler('bus:checkRouteStart', function()
-    local src = source
-    local Player = QBCore.Functions.GetPlayer(src)
-    if not Player then return end
-    
-    local citizenid = Player.PlayerData.citizenid
-    
-    -- Check if player can start route
-    if not canPlayerStartRoute(citizenid) then
-        TriggerClientEvent('QBCore:Notify', src, 'You have reached the maximum routes per hour. Please wait.', 'error')
-        return
+    -- Check cache first
+    if playerXP[identifier] then
+        return playerXP[identifier]
     end
-    
-    -- Increment route attempts
-    incrementPlayerRouteAttempts(citizenid)
-    
-    -- Allow route to start
-    TriggerClientEvent('bus:routeStartAllowed', src)
-end)
 
-RegisterNetEvent('bus:completeRoute')
-AddEventHandler('bus:completeRoute', function(routeData)
-    local src = source
-    local Player = QBCore.Functions.GetPlayer(src)
-    if not Player then return end
-    
-    local citizenid = Player.PlayerData.citizenid
-    local playerName = Player.PlayerData.name
-    
-    -- Validate route data
-    if not validateRouteData(routeData) then
-        if Config.Debug.enabled then
-            print(string.format('[BUS SERVER] Invalid route data from player %s', playerName))
-        end
-        return
-    end
-    
-    -- Calculate total payment with level bonus using async callback
-    GetPlayerLevelBonusAsync(citizenid, function(levelBonus)
-        local finalPayment = math.floor(routeData.totalPayment * levelBonus)
-        
-        -- Add money to player
-        Player.Functions.AddMoney(Config.PaymentSettings.defaultMethod, finalPayment, Config.PaymentSettings.paymentReason)
-        
-        -- Update database
-        UpdatePlayerStats(citizenid, playerName, routeData, finalPayment)
-        
-        -- Notify player
-        TriggerClientEvent('QBCore:Notify', src, string.format(Config.Messages.paymentReceived, 
-            finalPayment, routeData.routePayment, routeData.passengerBonus), 'success')
-        
-        -- Check for level up
-        CheckLevelUp(src, citizenid, routeData.xpEarned)
-        
-        if Config.Debug.enabled then
-            print(string.format('[BUS SERVER] Route completed by %s: $%d, %d XP, Level Bonus: %.2f', 
-                playerName, finalPayment, routeData.xpEarned, levelBonus))
-        end
-    end)
-end)
+    -- Query database (example - adjust based on your database setup)
+    local result = MySQL.query.await('SELECT bus_xp FROM sergei_bus_xp WHERE identifier = ?', {identifier})
 
--- Commands
-QBCore.Commands.Add(Config.Commands.giveMoney, 'Give money to player (Admin Only)', {{name = 'id', help = 'Player ID'}, {name = 'amount', help = 'Amount'}}, true, function(source, args)
-    local src = source
-    local Player = QBCore.Functions.GetPlayer(src)
-    if not Player then return end
-    
-    if not Player.PlayerData.admin then
-        TriggerClientEvent('QBCore:Notify', src, 'You do not have permission to use this command.', 'error')
-        return
-    end
-    
-    local targetId = tonumber(args[1])
-    local amount = tonumber(args[2])
-    
-    if not targetId or not amount then
-        TriggerClientEvent('QBCore:Notify', src, 'Usage: /' .. Config.Commands.giveMoney .. ' [id] [amount]', 'error')
-        return
-    end
-    
-    local TargetPlayer = QBCore.Functions.GetPlayer(targetId)
-    if not TargetPlayer then
-        TriggerClientEvent('QBCore:Notify', src, 'Player not found.', 'error')
-        return
-    end
-    
-    -- Add money to target player
-    TargetPlayer.Functions.AddMoney(Config.PaymentSettings.defaultMethod, amount, Config.PaymentSettings.adminGiftReason)
-    
-    -- Update database stats
-    exports.oxmysql:execute('UPDATE bus_jobs SET total_earnings = total_earnings + ? WHERE citizenid = ?', 
-        {amount, TargetPlayer.PlayerData.citizenid})
-    
-    -- Notify both players
-    TriggerClientEvent('QBCore:Notify', src, string.format('Gave $%d to %s', amount, TargetPlayer.PlayerData.name), 'success')
-    TriggerClientEvent('QBCore:Notify', targetId, string.format('You received $%d from an admin', amount), 'success')
-    
-    if Config.Debug.enabled then
-        print(string.format('[BUS SERVER] Admin %s gave $%d to %s', 
-            Player.PlayerData.name, amount, TargetPlayer.PlayerData.name))
-    end
-end)
-
-QBCore.Commands.Add(Config.Commands.help, 'Show bus job help', {}, false, function(source, args)
-    local src = source
-    
-    for _, helpText in ipairs(Config.Messages.helpText) do
-        TriggerClientEvent('QBCore:Notify', src, helpText, 'info')
-        Citizen.Wait(1000)
-    end
-end)
-
-QBCore.Commands.Add(Config.Commands.stats, 'Show your bus job statistics', {}, false, function(source, args)
-    local src = source
-    local Player = QBCore.Functions.GetPlayer(src)
-    if not Player then return end
-    
-    local citizenid = Player.PlayerData.citizenid
-    
-    exports.oxmysql:execute('SELECT * FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
-        if result and result[1] then
-            local data = result[1]
-            local stats = string.format('Level: %d | XP: %d | Jobs: %d | Distance: %.1f km | Earnings: $%d', 
-                data.current_level, data.total_xp, data.jobs_completed, data.total_distance, data.total_earnings)
-            TriggerClientEvent('QBCore:Notify', src, stats, 'primary')
-        else
-            TriggerClientEvent('QBCore:Notify', src, 'No statistics found. Complete your first route!', 'info')
-        end
-    end)
-end)
-
--- Database functions
-function UpdatePlayerStats(citizenid, playerName, routeData, finalPayment)
-    -- Update player stats directly with SQL
-    exports.oxmysql:execute([[
-        UPDATE bus_jobs 
-        SET 
-            total_xp = total_xp + ?,
-            total_distance = total_distance + ?,
-            jobs_completed = jobs_completed + 1,
-            total_earnings = total_earnings + ?,
-            last_job_date = NOW(),
-            updated_at = NOW()
-        WHERE citizenid = ?
-    ]], {
-        routeData.xpEarned,
-        routeData.distanceTraveled,
-        finalPayment,
-        citizenid
-    }, function(result)
-        if Config.Debug.enabled then
-            print(string.format('[BUS SERVER] Updated stats for %s: +%d XP, +%.2f km, +$%d', 
-                playerName, routeData.xpEarned, routeData.distanceTraveled, finalPayment))
-        end
-        
-        -- Insert job history record
-        InsertJobHistory(citizenid, playerName, routeData, finalPayment)
-        
-        -- Update leaderboard
-        UpdateLeaderboard(citizenid, playerName, routeData, finalPayment)
-    end)
-end
-
--- Insert job history record
-function InsertJobHistory(citizenid, playerName, routeData, finalPayment)
-    exports.oxmysql:execute([[
-        INSERT INTO bus_job_history 
-        (citizenid, player_name, route_name, base_payment, passenger_bonus, total_payment, 
-         passengers_loaded, distance_traveled, xp_earned, completion_time, completed_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-    ]], {
-        citizenid, playerName, routeData.routeName, routeData.routePayment, 
-        routeData.passengerBonus, finalPayment, routeData.passengersLoaded, 
-        routeData.distanceTraveled, routeData.xpEarned, routeData.completionTime
-    })
-end
-
--- Update leaderboard
-function UpdateLeaderboard(citizenid, playerName, routeData, finalPayment)
-    -- This would update the leaderboard tables
-    -- For now, we'll just log it
-    if Config.Debug.enabled then
-        print(string.format('[BUS SERVER] Leaderboard update for %s: Route %s completed', playerName, routeData.routeName))
-    end
-end
-
-function LoadLeaderboardData(src)
-    -- Load weekly leaderboard
-    exports.oxmysql:execute('SELECT * FROM bus_leaderboard WHERE period = ? AND period_start = DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) ORDER BY rank LIMIT 10', 
-        {'weekly'}, function(weeklyResult)
-        
-        -- Load monthly leaderboard
-        exports.oxmysql:execute('SELECT * FROM bus_leaderboard WHERE period = ? AND period_start = DATE_FORMAT(CURDATE(), "%Y-%m-01") ORDER BY rank LIMIT 10', 
-            {'monthly'}, function(monthlyResult)
-            
-            -- Load global leaderboard
-            exports.oxmysql:execute('SELECT * FROM bus_leaderboard_current ORDER BY global_rank LIMIT 10', {}, function(globalResult)
-                
-                local leaderboard = {
-                    weekly = weeklyResult or {},
-                    monthly = monthlyResult or {},
-                    global = globalResult or {}
-                }
-                
-                TriggerClientEvent('bus:updateLeaderboard', src, leaderboard)
-            end)
-        end)
-    end)
-end
-
--- Utility functions
-function GetPlayerTitle(level)
-    if Config.Leveling.levels[level] then
-        return Config.Leveling.levels[level].title
-    end
-    return 'Unknown Driver'
-end
-
--- Get player level bonus with callback (for async operations)
-function GetPlayerLevelBonusAsync(citizenid, callback)
-    exports.oxmysql:execute('SELECT current_level FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
-        local levelBonus = 1.0 -- Default bonus
-        if result and result[1] then
-            local level = result[1].current_level
-            if Config.Leveling.levels[level] then
-                levelBonus = Config.Leveling.levels[level].bonus
-            end
-        end
-        callback(levelBonus)
-    end)
-end
-
-function CheckLevelUp(src, citizenid, xpEarned)
-    -- Get current stats after XP has been added
-    exports.oxmysql:execute('SELECT total_xp, current_level FROM bus_jobs WHERE citizenid = ?', {citizenid}, function(result)
-        if result and result[1] then
-            local currentXP = result[1].total_xp
-            local currentLevel = result[1].current_level
-            
-            -- Check for level up
-            for level, levelData in pairs(Config.Leveling.levels) do
-                if level > currentLevel and currentXP >= levelData.xp then
-                    -- Level up!
-                    exports.oxmysql:execute('UPDATE bus_jobs SET current_level = ? WHERE citizenid = ?', {level, citizenid})
-                    
-                    -- Notify player
-                    TriggerClientEvent('QBCore:Notify', src, string.format(Config.Messages.levelUp, level, levelData.title), 'success')
-                    
-                    if Config.Debug.enabled then
-                        print(string.format('[BUS SERVER] Player %s leveled up to %d: %s', citizenid, level, levelData.title))
-                    end
-                    break
-                end
-            end
-        end
-    end)
-end
-
--- Anti-exploit functions
-function canPlayerStartRoute(citizenid)
-    local currentTime = os.time()
-    local attempts = playerRouteAttempts[citizenid] or 0
-    local lastAttempt = playerRouteCooldowns[citizenid] or 0
-    
-    -- Check cooldown
-    if currentTime - lastAttempt < (Config.AntiExploit.routeCooldown / 1000) then
-        return false
-    end
-    
-    -- Check hourly limit
-    if attempts >= Config.AntiExploit.maxRoutesPerHour then
-        return false
-    end
-    
-    return true
-end
-
-function incrementPlayerRouteAttempts(citizenid)
-    local currentTime = os.time()
-    
-    if not playerRouteAttempts[citizenid] then
-        playerRouteAttempts[citizenid] = 0
-    end
-    
-    playerRouteAttempts[citizenid] = playerRouteAttempts[citizenid] + 1
-    playerRouteCooldowns[citizenid] = currentTime
-    
-    -- Reset attempts after 1 hour
-    Citizen.CreateThread(function()
-        Citizen.Wait(Config.AntiExploit.routeCooldown)
-        if playerRouteAttempts[citizenid] then
-            playerRouteAttempts[citizenid] = playerRouteAttempts[citizenid] - 1
-            if playerRouteAttempts[citizenid] <= 0 then
-                playerRouteAttempts[citizenid] = nil
-            end
-        end
-    end)
-end
-
-function CleanupOldRouteAttempts()
-    local currentTime = os.time()
-    
-    for citizenid, lastAttempt in pairs(playerRouteCooldowns) do
-        if currentTime - lastAttempt > 3600 then -- 1 hour
-            playerRouteAttempts[citizenid] = nil
-            playerRouteCooldowns[citizenid] = nil
-        end
-    end
-    
-    if Config.Debug.enabled then
-        print('[BUS SERVER] Cleaned up old route attempts')
-    end
-end
-
--- Data validation
-function validateRouteData(routeData)
-    if not routeData then return false end
-    
-    -- Check required fields
-    if not routeData.routeName or not routeData.totalPayment or not routeData.xpEarned then
-        return false
-    end
-    
-    -- Validate payment amount
-    if routeData.totalPayment < 0 or routeData.totalPayment > 10000 then
-        return false
-    end
-    
-    -- Validate XP amount
-    if routeData.xpEarned < 0 or routeData.xpEarned > 1000 then
-        return false
-    end
-    
-    -- Validate passenger count
-    if routeData.passengersLoaded and (routeData.passengersLoaded < 0 or routeData.passengersLoaded > Config.AntiExploit.maxPassengersPerRoute) then
-        return false
-    end
-    
-    return true
-end
-
--- Export functions for external use
-exports('GetPlayerBusStats', function(citizenid)
-    local result = exports.oxmysql:executeSync('SELECT * FROM bus_jobs WHERE citizenid = ?', {citizenid})
     if result and result[1] then
-        return result[1]
+        playerXP[identifier] = result[1].bus_xp or 0
+        return playerXP[identifier]
     end
-    return nil
-end)
 
-exports('GetBusLeaderboard', function(period, limit)
-    limit = limit or 10
-    local query = ''
-    local params = {}
-    
-    if period == 'weekly' then
-        query = 'SELECT * FROM bus_leaderboard WHERE period = ? AND period_start = DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) ORDER BY rank LIMIT ?'
-        params = {'weekly', limit}
-    elseif period == 'monthly' then
-        query = 'SELECT * FROM bus_leaderboard WHERE period = ? AND period_start = DATE_FORMAT(CURDATE(), "%Y-%m-01") ORDER BY rank LIMIT ?'
-        params = {'monthly', limit}
-    else
-        query = 'SELECT * FROM bus_leaderboard_current ORDER BY global_rank LIMIT ?'
-        params = {limit}
-    end
-    
-    local result = exports.oxmysql:executeSync(query, params)
-    return result or {}
-end)
-
--- Resource cleanup
-AddEventHandler('onResourceStop', function(resourceName)
-    if GetCurrentResourceName() == resourceName then
-        -- Clean up any remaining data
-        playerRouteAttempts = {}
-        playerRouteCooldowns = {}
-        
-        if Config.Debug.enabled then
-            print('[BUS SERVER] Resource stopped, cleaned up data')
-        end
-    end
-end)
-
--- Create new player record
-function CreateNewPlayerRecord(citizenid, playerName)
-    exports.oxmysql:execute('INSERT INTO bus_jobs (citizenid, player_name, total_xp, current_level, total_distance, jobs_completed, total_earnings) VALUES (?, ?, 0, 1, 0.00, 0, 0.00)', {
-        citizenid, playerName
-    }, function(result)
-        if Config.Debug.enabled then
-            print(string.format('[BUS SERVER] Created new player record for %s', playerName))
-        end
-    end)
+    return 0
 end
 
+-- Function to set player XP
+function SetPlayerXP(source, xp)
+    local identifier = Framework:GetPlayerIdentifier(Framework:GetPlayer(source))
+
+    if not identifier then return end
+
+    playerXP[identifier] = xp
+
+    -- Save to database (example - adjust based on your database setup)
+    MySQL.update('INSERT INTO sergei_bus_xp (identifier, bus_xp) VALUES (?, ?) ON DUPLICATE KEY UPDATE bus_xp = ?', {identifier, xp, xp})
+end
+
+-- Function to add XP to player
+function AddPlayerXP(source, xp)
+    local currentXP = GetPlayerXP(source)
+    local newXP = currentXP + xp
+
+    SetPlayerXP(source, newXP)
+
+    return newXP
+end
+
+-- Function to get player level from XP
+function GetPlayerLevel(xp)
+    -- Simple level calculation - adjust as needed
+    if xp < 100 then return 1
+    elseif xp < 300 then return 2
+    elseif xp < 600 then return 3
+    elseif xp < 1000 then return 4
+    elseif xp < 1500 then return 5
+    elseif xp < 2200 then return 6
+    elseif xp < 3000 then return 7
+    elseif xp < 4000 then return 8
+    elseif xp < 5200 then return 9
+    elseif xp < 6600 then return 10
+    elseif xp < 8200 then return 11
+    elseif xp < 10000 then return 12
+    elseif xp < 12000 then return 13
+    elseif xp < 14200 then return 14
+    elseif xp < 16600 then return 15
+    elseif xp < 19200 then return 16
+    elseif xp < 22000 then return 17
+    elseif xp < 25000 then return 18
+    elseif xp < 28200 then return 19
+    elseif xp < 31600 then return 20
+    else return 20 end -- Max level
+end
+
+-- Event handler for job completion
+RegisterNetEvent('sergeis-bus:server:completeJob', function(zoneIndex, jobIndex)
+    local src = source
+    local player = Framework:GetPlayer(src)
+
+    if not player then return end
+
+    local zone = shared.BusJob[zoneIndex]
+    if not zone then return end
+
+    local job = zone.Jobs[jobIndex]
+    if not job then return end
+
+    -- Check if player meets level requirement
+    local playerXP = GetPlayerXP(src)
+    local playerLevel = GetPlayerLevel(playerXP)
+
+    if playerLevel < job.level then
+        Framework:Notify(src, string.format("You need to be level %d to do this job!", job.level), "error")
+        return
+    end
+
+    -- Award money
+    Framework:AddMoney(src, "cash", job.totalPrice)
+
+    -- Award XP
+    local newXP = AddPlayerXP(src, job.xp)
+    local newLevel = GetPlayerLevel(newXP)
+
+    -- Check for level up
+    if newLevel > playerLevel then
+        Framework:Notify(src, string.format("🎉 Level Up! You are now level %d!", newLevel), "success")
+    end
+
+    -- Send completion message
+    Framework:Notify(src, string.format(shared.Locales["xpAndMoney"], job.totalPrice, job.xp), "success")
+
+    if shared.debug then
+        print(string.format("Player %s completed bus job: +$%d, +%d XP", GetPlayerName(src), job.totalPrice, job.xp))
+    end
+end)
+
+-- Event handler for getting player level (for client-side checks)
+RegisterNetEvent('sergeis-bus:server:getPlayerLevel', function()
+    local src = source
+    local playerXP = GetPlayerXP(src)
+    local playerLevel = GetPlayerLevel(playerXP)
+
+    TriggerClientEvent('sergeis-bus:client:updatePlayerLevel', src, playerLevel, playerXP)
+end)
+
+-- Function to check if player can do job
+function CanPlayerDoJob(source, requiredLevel)
+    local playerXP = GetPlayerXP(source)
+    local playerLevel = GetPlayerLevel(playerXP)
+
+    return playerLevel >= requiredLevel
+end
+
+-- Callback for client to check job requirements
+lib.callback.register('sergeis-bus:server:canDoJob', function(source, zoneIndex, jobIndex)
+    local zone = shared.BusJob[zoneIndex]
+    if not zone then return false end
+
+    local job = zone.Jobs[jobIndex]
+    if not job then return false end
+
+    return CanPlayerDoJob(source, job.level)
+end)
+
+-- Function to get job info
+lib.callback.register('sergeis-bus:server:getJobInfo', function(source, zoneIndex, jobIndex)
+    local zone = shared.BusJob[zoneIndex]
+    if not zone then return nil end
+
+    local job = zone.Jobs[jobIndex]
+    if not job then return nil end
+
+    local playerXP = GetPlayerXP(source)
+    local playerLevel = GetPlayerLevel(playerXP)
+
+    return {
+        name = job.name,
+        level = job.level,
+        xp = job.xp,
+        totalPrice = job.totalPrice,
+        playerLevel = playerLevel,
+        canDoJob = playerLevel >= job.level,
+        stops = #job.stops
+    }
+end)
+
+-- Function to get all player stats
+lib.callback.register('sergeis-bus:server:getPlayerStats', function(source)
+    local playerXP = GetPlayerXP(source)
+    local playerLevel = GetPlayerLevel(playerXP)
+    local xpForNextLevel = 0
+
+    -- Calculate XP needed for next level
+    if playerLevel < 20 then
+        local levelXP = {
+            100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5200, 6600,
+            8200, 10000, 12000, 14200, 16600, 19200, 22000, 25000, 28200, 31600
+        }
+        xpForNextLevel = levelXP[playerLevel] - playerXP
+    end
+
+    return {
+        level = playerLevel,
+        xp = playerXP,
+        xpForNextLevel = xpForNextLevel
+    }
+end)
+
+-- Command to check player stats
+RegisterCommand('busstats', function(source)
+    if source == 0 then return end -- Don't run from console
+
+    local stats = lib.callback.await('sergeis-bus:server:getPlayerStats', source)
+
+    Framework:Notify(source, string.format("Bus Driver Level: %d | XP: %d | XP to next: %d",
+        stats.level, stats.xp, stats.xpForNextLevel), "info")
+end, false)
+
+-- Admin command to set player XP
+RegisterCommand('setbusxp', function(source, args)
+    if source == 0 then return end -- Don't run from console
+
+    -- Add your admin permission check here
+    -- if not IsPlayerAceAllowed(source, "admin") then return end
+
+    if not args[1] or not args[2] then
+        Framework:Notify(source, "Usage: /setbusxp [playerid] [xp]", "error")
+        return
+    end
+
+    local target = tonumber(args[1])
+    local xp = tonumber(args[2])
+
+    if not target or not xp then
+        Framework:Notify(source, "Invalid arguments", "error")
+        return
+    end
+
+    SetPlayerXP(target, xp)
+    Framework:Notify(source, string.format("Set player %d bus XP to %d", target, xp), "success")
+    Framework:Notify(target, string.format("Your bus XP has been set to %d", xp), "info")
+end, false)
+
+-- Function to initialize database table if it doesn't exist
+Citizen.CreateThread(function()
+    Wait(1000) -- Wait for database connection
+
+    MySQL.query([[
+        CREATE TABLE IF NOT EXISTS `sergei_bus_xp` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `identifier` varchar(50) NOT NULL,
+            `bus_xp` int(11) NOT NULL DEFAULT 0,
+            `last_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `identifier` (`identifier`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    ]])
+
+    if shared.debug then
+        print("Bus job database table initialized")
+    end
+end)
+
+-- Function to save all cached XP on server shutdown
+AddEventHandler('onResourceStop', function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+
+    if shared.debug then
+        print("Saving player XP data...")
+    end
+
+    -- Save cached XP data
+    for identifier, xp in pairs(playerXP) do
+        MySQL.update('INSERT INTO sergei_bus_xp (identifier, bus_xp) VALUES (?, ?) ON DUPLICATE KEY UPDATE bus_xp = ?', {identifier, xp, xp})
+    end
+
+    if shared.debug then
+        print("Player XP data saved")
+    end
+end)
+
+-- Debug command
+if shared.debug then
+    RegisterCommand('busdebug', function(source)
+        if source == 0 then return end
+
+        local playerXP = GetPlayerXP(source)
+        local playerLevel = GetPlayerLevel(playerXP)
+
+        print(string.format("Player %s - Level: %d, XP: %d", GetPlayerName(source), playerLevel, playerXP))
+        Framework:Notify(source, string.format("Debug - Level: %d, XP: %d", playerLevel, playerXP), "info")
+    end, false)
+end
