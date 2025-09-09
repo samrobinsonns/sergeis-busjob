@@ -182,22 +182,70 @@ function getLevelXPRequirement(level) {
 function loadRoutesData() {
     const routesGrid = document.getElementById('routesGrid');
     if (!routesGrid) return;
-    
+
     routesGrid.innerHTML = '';
-    
+
+    // Group routes by level
+    const routesByLevel = {};
     routes.forEach((route, index) => {
-        const routeCard = createRouteCard(route, index);
-        routesGrid.appendChild(routeCard);
+        const level = route.level || 1;
+        if (!routesByLevel[level]) {
+            routesByLevel[level] = [];
+        }
+        routesByLevel[level].push({route, index});
     });
+
+    // Sort levels
+    const sortedLevels = Object.keys(routesByLevel).sort((a, b) => parseInt(a) - parseInt(b));
+
+    sortedLevels.forEach(level => {
+        const levelRoutes = routesByLevel[level];
+        const levelSection = createLevelSection(level, levelRoutes);
+        routesGrid.appendChild(levelSection);
+    });
+}
+
+// Create level section
+function createLevelSection(level, levelRoutes) {
+    const section = document.createElement('div');
+    section.className = 'level-section';
+
+    const levelNames = {
+        1: 'Beginner',
+        2: 'Novice',
+        3: 'Intermediate',
+        4: 'Advanced',
+        5: 'Expert',
+        6: 'Professional',
+        7: 'Elite',
+        8: 'Master',
+        9: 'Champion',
+        10: 'Legend'
+    };
+
+    const levelName = levelNames[level] || `Level ${level}`;
+
+    section.innerHTML = `
+        <div class="level-header">
+            <div class="level-badge">Level ${level}</div>
+            <div class="level-name">${levelName}</div>
+            <div class="level-count">${levelRoutes.length} route${levelRoutes.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="level-routes">
+            ${levelRoutes.map(({route, index}) => createRouteCard(route, index).outerHTML).join('')}
+        </div>
+    `;
+
+    return section;
 }
 
 // Create route card
 function createRouteCard(route, index) {
     const card = document.createElement('div');
     card.className = 'route-card';
-    
+
     const stopsList = route.stops.map(stop => stop.name).join(' → ');
-    
+
     card.innerHTML = `
         <div class="route-header">
             <div class="route-name">${route.name}</div>
@@ -214,7 +262,7 @@ function createRouteCard(route, index) {
             Start Route
         </button>
     `;
-    
+
     return card;
 }
 
@@ -359,6 +407,7 @@ if (window.location.href.includes('test-dashboard.html')) {
     routes = [
         {
             name: "Downtown Express",
+            level: 1,
             stops: [
                 {coords: {x: 200.0, y: -800.0, z: 30.0}, name: "Downtown Central"},
                 {coords: {x: 300.0, y: -900.0, z: 30.0}, name: "Shopping District"},
@@ -371,6 +420,7 @@ if (window.location.href.includes('test-dashboard.html')) {
         },
         {
             name: "Airport Shuttle",
+            level: 5,
             stops: [
                 {coords: {x: 800.0, y: -1200.0, z: 30.0}, name: "Airport Terminal 1"},
                 {coords: {x: 900.0, y: -1300.0, z: 30.0}, name: "Airport Terminal 2"},
@@ -382,6 +432,7 @@ if (window.location.href.includes('test-dashboard.html')) {
         },
         {
             name: "Beach Route",
+            level: 3,
             stops: [
                 {coords: {x: -1200.0, y: -1500.0, z: 4.0}, name: "Beach Boardwalk"},
                 {coords: {x: -1300.0, y: -1600.0, z: 4.0}, name: "Beach Resort"},

@@ -1,5 +1,15 @@
 Framework = {}
 currentZone = nil
+working = false
+menuOpened = false
+passengerCreationAttempted = false
+headingToDepot = false
+
+-- Global variables for mission state
+busBlip = nil
+destinationBlip = nil
+passengerPed = nil
+busVehicle = nil
 
 function Framework:GetIdentifier()
     if shared.Framework == "qb" then
@@ -30,11 +40,161 @@ end
 function Framework:SpawnClear(data,count)
     if shared.Framework == "qb" then
         return FrameworkObject.Functions.SpawnClear(data,count)
-    elseif shared.Framework == "esx" then        
+    elseif shared.Framework == "esx" then
         return FrameworkObject.Game.IsSpawnPointClear(data,count)
     else
         -- Write your own code.
         return nil
+    end
+end
+
+-- Function to open the bus job menu
+function OpenBusMenu()
+    if menuOpened then return end
+    menuOpened = true
+
+    if shared.debug then
+        print("[DEBUG] Sergei Bus: Opening bus menu for zone " .. tostring(currentZone))
+        print("[DEBUG] Sergei Bus: Available jobs: " .. tostring(#GetAvailableJobs()))
+    end
+
+    -- Open HTML interface
+    SetNuiFocus(true, true)
+    -- Get player level from server
+    TriggerServerEvent('sergeis-bus:server:getPlayerLevel')
+
+    -- Send initial menu data
+    local jobList = GetAvailableJobs()
+    SendNUIMessage({
+        action = "open",
+        list = jobList,
+        xp = 0 -- Will be updated when server responds
+    })
+
+    if shared.debug then
+        print("[DEBUG] Sergei Bus: Sent NUI message with " .. #jobList .. " jobs")
+    end
+end
+
+-- Function to get available jobs for the current zone
+function GetAvailableJobs()
+    local jobs = {}
+
+    -- Try to load Config if not available
+    if not Config then
+        if shared.debug then
+            print("[DEBUG] Sergei Bus: Config not loaded in shared, loading from file...")
+        end
+
+        local configChunk, loadError = load(LoadResourceFile(GetCurrentResourceName(), 'config.lua'))
+        if configChunk then
+            local success, result = pcall(configChunk)
+            if success then
+                if shared.debug then
+                    print("[DEBUG] Sergei Bus: Config loaded successfully in shared file")
+                end
+            else
+                if shared.debug then
+                    print("[ERROR] Sergei Bus: Failed to execute config in shared: " .. tostring(result))
+                end
+            end
+        else
+            if shared.debug then
+                print("[ERROR] Sergei Bus: Failed to load config file in shared: " .. tostring(loadError))
+            end
+        end
+    end
+
+    -- Use Config.Routes if available (new system)
+    if Config and Config.Routes then
+        if shared.debug then
+            print("[DEBUG] Sergei Bus: Using Config.Routes with " .. #Config.Routes .. " routes")
+        end
+
+        for jobIndex, route in ipairs(Config.Routes) do
+            table.insert(jobs, {
+                index = jobIndex - 1, -- JavaScript 0-indexed
+                name = route.name,
+                level = route.level or 1,
+                giveXp = route.baseXP or 0,
+                price = route.basePayment or 0,
+                imgSrc = 'images/bus/bus.png', -- Default bus image
+                stopcount = route.stops and #route.stops or 0
+            })
+        end
+    else
+        -- Fallback to old shared.BusJob system
+        if shared.debug then
+            print("[DEBUG] Sergei Bus: Config not available, using shared.BusJob fallback")
+        end
+
+        for k, v in pairs(shared.BusJob) do
+            if currentZone == k then
+                for jobIndex, job in ipairs(v.Jobs) do
+                    table.insert(jobs, {
+                        index = jobIndex - 1, -- JavaScript 0-indexed
+                        name = job.name,
+                        level = job.level,
+                        giveXp = job.xp,
+                        price = job.totalPrice,
+                        imgSrc = job.imgSrc,
+                        stopcount = #job.stops
+                    })
+                end
+                break
+            end
+        end
+    end
+
+    if shared.debug then
+        print("[DEBUG] Sergei Bus: GetAvailableJobs returning " .. #jobs .. " jobs")
+    end
+
+    return jobs
+end
+
+-- Function to end mission
+function EndMission(completed)
+    if not working then return end
+
+    -- Default to false (cancellation) if no parameter provided
+    completed = completed or false
+
+    working = false
+    passengerCreationAttempted = false
+    headingToDepot = false
+
+    -- Remove blips if they exist
+    if busBlip then
+        RemoveBlip(busBlip)
+        busBlip = nil
+    end
+    if destinationBlip then
+        RemoveBlip(destinationBlip)
+        destinationBlip = nil
+    end
+
+    -- Clear any GPS routes
+    ClearGpsPlayerWaypoint()
+    ClearGpsMultiRoute()
+
+    -- Delete bus if it exists
+    if busVehicle then
+        DeleteEntity(busVehicle)
+        busVehicle = nil
+    end
+
+    -- Delete passenger if it exists
+    if passengerPed then
+        DeleteEntity(passengerPed)
+        passengerPed = nil
+    end
+
+    -- Show appropriate message based on completion status
+    if completed then
+        Framework:Notify("Job completed successfully!", "success")
+    else
+        Framework:Notify("Job cancelled.", "error")
     end
 end
 

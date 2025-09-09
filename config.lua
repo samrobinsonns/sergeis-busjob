@@ -2,10 +2,10 @@ Config = {}
 
 -- Bus depot location
 Config.Depot = {
-    x = 456.0,
-    y = -1025.0,
-    z = 28.0,
-    coords = vector3(456.0, -1025.0, 28.0),
+    x = 469.9733,
+    y = -583.4772,
+    z = 28.4996,
+    coords = vector3(469.9733, -583.4772, 28.4996),
     heading = 90.0,
     target = {
         enabled = true,
@@ -43,43 +43,148 @@ Config.SpawnValidation = {
     spawnPointSpacing = 5.0      -- Minimum spacing between spawn points
 }
 
--- Bus model
+-- Default bus model (fallback if route doesn't specify one)
 Config.BusModel = 'bus'
 
 -- Available routes
 Config.Routes = {
     {
         name = "Downtown Express",
+        level = 1, -- Basic route for beginners
+        vehicleModel = 'bus2', -- Standard bus for basic routes
         stops = {
-            {coords = vector3(200.0, -800.0, 30.0), name = "Downtown Central"},
-            {coords = vector3(300.0, -900.0, 30.0), name = "Shopping District"},
-            {coords = vector3(400.0, -1000.0, 30.0), name = "Residential Area"},
-            {coords = vector3(500.0, -1100.0, 30.0), name = "Business Park"}
-        },
-        basePayment = 150,
-        baseXP = 50,
-        distanceMultiplier = 0.1 -- XP per km traveled
-    },
-    {
-        name = "Airport Shuttle",
-        stops = {
-            {coords = vector3(800.0, -1200.0, 30.0), name = "Airport Terminal 1"},
-            {coords = vector3(900.0, -1300.0, 30.0), name = "Airport Terminal 2"},
-            {coords = vector3(1000.0, -1400.0, 30.0), name = "Airport Parking"}
+            {coords = vector3(462.7124, -643.9278, 28.3319), name = "Downtown Central"},
+            {coords = vector3(274.4731, -592.2328, 43.1166), name = "Pillbox Hill Hospital"},
+            {coords = vector3(-516.8644, -264.1432, 35.3808), name = "City Hall"},
+            {coords = vector3(-651.6819, -938.4558, 22.1935), name = "Weazel News"},
+            {coords = vector3(-172.2864, -1416.1000, 31.1496), name = "Union Depository"}
         },
         basePayment = 200,
         baseXP = 75,
-        distanceMultiplier = 0.15
+        distanceMultiplier = 0.12 -- XP per km traveled
+    },
+    {
+        name = "Airport Shuttle",
+        level = 5, -- Advanced route requiring experience
+        vehicleModel = 'airbus', -- Airbus for airport routes
+        stops = {
+            {coords = vector3(-1037.0, -2737.0, 20.0), name = "Airport Terminal 1"},
+            {coords = vector3(-1034.0, -2733.0, 20.0), name = "Airport Terminal 2"},
+            {coords = vector3(-1029.0, -2491.0, 20.0), name = "Airport Parking"}
+        },
+        basePayment = 250,
+        baseXP = 100,
+        distanceMultiplier = 0.18
     },
     {
         name = "Beach Route",
+        level = 3, -- Intermediate route
+        vehicleModel = 'LFS', -- Coach bus for longer beach routes
         stops = {
-            {coords = vector3(-1200.0, -1500.0, 4.0), name = "Beach Boardwalk"},
-            {coords = vector3(-1300.0, -1600.0, 4.0), name = "Beach Resort"},
-            {coords = vector3(-1400.0, -1700.0, 4.0), name = "Beach Pier"}
+            {coords = vector3(-1681.0, -1111.0, 13.0), name = "Beach Boardwalk"},
+            {coords = vector3(-1583.0, -1035.0, 13.0), name = "Beach Resort"},
+            {coords = vector3(-1506.0, -937.0, 13.0), name = "Beach Pier"}
         },
-        basePayment = 120,
-        baseXP = 40,
+        basePayment = 180,
+        baseXP = 60,
+        distanceMultiplier = 0.10
+    },
+    {
+        name = "Vinewood Circuit",
+        level = 4, -- Advanced route
+        vehicleModel = 'mid60lf', -- Coach bus for celebrity routes
+        stops = {
+            {coords = vector3(689.0, 601.0, 128.0), name = "Vinewood Hills"},
+            {coords = vector3(115.0, 568.0, 183.0), name = "Richards Majestic"},
+            {coords = vector3(-497.0, 527.0, 120.0), name = "Vinewood Sign"},
+            {coords = vector3(-1334.0, 453.0, 100.0), name = "Galileo Observatory"}
+        },
+        basePayment = 300,
+        baseXP = 120,
+        distanceMultiplier = 0.15
+    },
+    {
+        name = "Mirror Park Loop",
+        level = 2, -- Beginner intermediate route
+        vehicleModel = 'co1', -- Standard bus
+        stops = {
+            {coords = vector3(1054.0, -806.0, 30.0), name = "Mirror Park"},
+            {coords = vector3(1244.0, -1041.0, 36.0), name = "East Vinewood"},
+            {coords = vector3(1073.0, -1138.0, 28.0), name = "Murrieta Heights"},
+            {coords = vector3(916.0, -1032.0, 34.0), name = "Hawick"}
+        },
+        basePayment = 160,
+        baseXP = 55,
+        distanceMultiplier = 0.11
+    },
+    {
+        name = "Textile City Express",
+        level = 3, -- Intermediate industrial route
+        vehicleModel = 'bus', -- Standard bus for industrial areas
+        stops = {
+            {coords = vector3(718.0, -962.0, 30.0), name = "Textile City"},
+            {coords = vector3(406.0, -1311.0, 46.0), name = "Cypress Flats"},
+            {coords = vector3(336.0, -1580.0, 29.0), name = "La Mesa"},
+            {coords = vector3(479.0, -1751.0, 28.0), name = "Mission Row"}
+        },
+        basePayment = 140,
+        baseXP = 50,
+        distanceMultiplier = 0.09
+    },
+    {
+        name = "Paleto Bay Rural",
+        level = 6, -- Expert route requiring high level
+        vehicleModel = 'coach', -- Coach bus for long rural routes
+        stops = {
+            {coords = vector3(-168.0, 6429.0, 31.0), name = "Paleto Bay"},
+            {coords = vector3(1689.0, 6429.0, 32.0), name = "Grapeseed"},
+            {coords = vector3(2549.0, 4668.0, 34.0), name = "Mount Chiliad Base"},
+            {coords = vector3(1673.0, 4815.0, 42.0), name = "Altruist Camp"}
+        },
+        basePayment = 400,
+        baseXP = 150,
+        distanceMultiplier = 0.25
+    },
+    {
+        name = "Del Perro Luxury",
+        level = 7, -- High-level luxury route
+        vehicleModel = 'tourbus', -- Tour bus for luxury routes
+        stops = {
+            {coords = vector3(-1661.0, -541.0, 35.0), name = "Del Perro Pier"},
+            {coords = vector3(-1894.0, -572.0, 20.0), name = "Vespucci Beach"},
+            {coords = vector3(-2085.0, -1016.0, 15.0), name = "Pacific Bluffs"},
+            {coords = vector3(-1850.0, -1230.0, 15.0), name = "Richman"}
+        },
+        basePayment = 500,
+        baseXP = 180,
+        distanceMultiplier = 0.20
+    },
+    {
+        name = "Sandy Shores Desert",
+        level = 8, -- Expert desert route
+        vehicleModel = 'coach', -- Coach bus for desert conditions
+        stops = {
+            {coords = vector3(1961.0, 3740.0, 32.0), name = "Sandy Shores"},
+            {coords = vector3(2510.0, 4109.0, 38.0), name = "Grand Senora Desert"},
+            {coords = vector3(2939.0, 4624.0, 48.0), name = "Mount Gordo"},
+            {coords = vector3(2365.0, 4961.0, 42.0), name = "Raton Canyon"}
+        },
+        basePayment = 600,
+        baseXP = 200,
+        distanceMultiplier = 0.30
+    },
+    {
+        name = "Morningwood Residential",
+        level = 2, -- Easy residential route
+        vehicleModel = 'bus', -- Standard bus for residential areas
+        stops = {
+            {coords = vector3(-1436.0, -653.0, 28.0), name = "Morningwood"},
+            {coords = vector3(-1285.0, -841.0, 25.0), name = "Rockford Hills"},
+            {coords = vector3(-887.0, -1073.0, 20.0), name = "West Vinewood"},
+            {coords = vector3(-1174.0, -1571.0, 15.0), name = "Burton"}
+        },
+        basePayment = 130,
+        baseXP = 45,
         distanceMultiplier = 0.08
     }
 }

@@ -3,74 +3,244 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bus Job by Savana</title>
+    <title>Sergei's Bus Job</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/x-icon" href="images/bus/tourbus.png">
-    <script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-<HASH>" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
-    <div class="passenger">
-        <div class="phead">Number of Passengers</div>
-        <div class="pcount">ILK YOLCUYA GIT</div>
-    </div>
-    <div class="main">
-        <div class="topWrapper">
-            <div class="topWrapper-jobName">
-                <div class="iconLogo">
-                    <i class="fa-solid fa-truck"></i>
-                </div>
-                <div class="jobText">BUS JOB</div>
-            </div>
-            <div class="rightTopWrapper">
-                <div class="topWrapper-close">
-                    <div class="closeText">
-                        Close Page
+    <!-- iPad Device Frame -->
+    <div class="ipad-frame" id="dashboardContainer">
+        <!-- iPad Screen -->
+        <div class="ipad-screen">
+            <!-- Main UI Container -->
+            <div class="ui-container">
+                <!-- Top Bar -->
+                <div class="top-bar">
+                    <div class="top-bar-left">
+                        <div class="company-icon">
+                            <i class="fas fa-bus"></i>
+                        </div>
+                        <div class="company-name">Sergei's Bus Company</div>
                     </div>
-                    <div class="closeIcon">
-                        <div class="Icon">
-                            <img src="images/iconamoon_close.png" alt="">
+                    <div class="top-bar-center">
+                        <div class="player-stats">
+                            <div class="stat-item">
+                                <i class="fas fa-star"></i>
+                                <span id="playerLevel">Level 1</span>
+                            </div>
+                            <div class="stat-item">
+                                <i class="fas fa-briefcase"></i>
+                                <span id="playerJobs">0 jobs</span>
+                            </div>
+                        </div>
+                        <div class="xp-bar">
+                            <div class="xp-progress" id="xpProgressFill"></div>
                         </div>
                     </div>
+                    <div class="top-bar-right">
+                        <button class="close-btn" id="closeDashboard">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="level">
-                    <div class="levelText">17/100 Level 1</div>
-                    <div class="levelProg">
-                        <div class="levelStatus"></div>
+
+                <!-- Main Layout -->
+                <div class="main-layout">
+                    <!-- Sidebar -->
+                    <div class="sidebar">
+                        <div class="sidebar-header">
+                            <h3>Navigation</h3>
+                        </div>
+                        <div class="sidebar-nav">
+                            <div class="nav-item active" data-tab="dashboard">
+                                <i class="fas fa-tachometer-alt"></i>
+                                <span>Dashboard</span>
+                            </div>
+                            <div class="nav-item" data-tab="routes">
+                                <i class="fas fa-route"></i>
+                                <span>Routes</span>
+                            </div>
+                            <div class="nav-item" data-tab="leaderboard">
+                                <i class="fas fa-trophy"></i>
+                                <span>Leaderboard</span>
+                            </div>
+                        </div>
+                        <div class="sidebar-footer">
+                            <div class="user-info">
+                                <i class="fas fa-user"></i>
+                                <div class="user-details">
+                                    <div class="user-rank">Driver</div>
+                                    <div class="user-status">Online</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Content Area -->
+                    <div class="content-area">
+                        <!-- Dashboard Tab -->
+                        <div id="dashboardTab" class="tab-pane active">
+                            <div class="dashboard-hero">
+                                <div class="hero-stat">
+                                    <div class="hero-icon">
+                                        <i class="fas fa-star"></i>
+                                    </div>
+                                    <div class="hero-content">
+                                        <div class="hero-value" id="dashboardLevel">1</div>
+                                        <div class="hero-label">Current Level</div>
+                                        <div class="hero-trend">
+                                            <i class="fas fa-arrow-up"></i>
+                                            <span>Keep driving!</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="hero-stat">
+                                    <div class="hero-icon warning">
+                                        <i class="fas fa-briefcase"></i>
+                                    </div>
+                                    <div class="hero-content">
+                                        <div class="hero-value" id="dashboardJobs">0</div>
+                                        <div class="hero-label">Jobs Completed</div>
+                                        <div class="hero-trend">
+                                            <i class="fas fa-clock"></i>
+                                            <span>Active</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="dashboard-main">
+                                <!-- XP Progress Card -->
+                                <div class="dashboard-card xp-progress-card">
+                                    <div class="xp-progress-content">
+                                        <div class="xp-main-display">
+                                            <div class="xp-current">
+                                                <span id="expCurrent">0</span>
+                                                <div class="xp-label">Current XP</div>
+                                            </div>
+                                            <div class="xp-next-level">
+                                                <span id="expNext">100</span>
+                                                <div class="xp-label">Next Level</div>
+                                            </div>
+                                        </div>
+                                        <div class="level-progress">
+                                            <div class="level-info">
+                                                <div class="current-level">Level <span id="expLevel">1</span></div>
+                                                <div class="next-level">Level <span id="expNextLevel">2</span></div>
+                                            </div>
+                                            <div class="level-bar">
+                                                <div class="level-fill" id="levelFill"></div>
+                                            </div>
+                                            <div class="level-xp">
+                                                <span id="expProgressText">0 / 100 XP</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Activity Card -->
+                                <div class="dashboard-card">
+                                    <div class="card-header">
+                                        <h3><i class="fas fa-history"></i> Recent Activity</h3>
+                                    </div>
+                                    <div class="activity-timeline">
+                                        <div class="activity-item">
+                                            <div class="activity-icon job">
+                                                <i class="fas fa-bus"></i>
+                                            </div>
+                                            <div class="activity-content">
+                                                <div class="activity-title">Welcome to Sergei's Bus Company</div>
+                                                <div class="activity-subtitle">Start your first route to begin earning XP</div>
+                                                <div class="activity-time">Just now</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Routes Tab -->
+                        <div id="routesTab" class="tab-pane">
+                            <div class="section-header">
+                                <h2>Available Routes</h2>
+                                <p>Select a route to start your bus journey</p>
+                            </div>
+                            <div class="job-selection-area">
+                                <div class="job-section active" id="routesSection">
+                                    <div class="job-section-header">
+                                        <i class="fas fa-list"></i>
+                                        <h3>Route Selection</h3>
+                                        <p>Choose from our available bus routes</p>
+                                    </div>
+                                    <div id="routesGrid" class="routes-grid">
+                                        <!-- Routes will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Leaderboard Tab -->
+                        <div id="leaderboardTab" class="tab-pane">
+                            <div class="leaderboard-filters">
+                                <button class="filter-btn active" data-period="weekly">
+                                    <i class="fas fa-calendar-week"></i>
+                                    Weekly
+                                </button>
+                                <button class="filter-btn" data-period="monthly">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    Monthly
+                                </button>
+                                <button class="filter-btn" data-period="global">
+                                    <i class="fas fa-globe"></i>
+                                    All Time
+                                </button>
+                            </div>
+                            <div class="leaderboard-table">
+                                <div class="table-header">
+                                    <div>Rank</div>
+                                    <div>Driver</div>
+                                    <div>Level</div>
+                                    <div>XP</div>
+                                    <div>Jobs</div>
+                                    <div>Earnings</div>
+                                </div>
+                                <div class="table-body" id="leaderboardBody">
+                                    <!-- Leaderboard entries will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+
                     </div>
                 </div>
             </div>
-         </div>
-        <div class="filter">
-            <div class="searchTrailer">
-                <div class="inputArea">
-                    <input type="text" id="trailerInput" placeholder="Search Bus...">
-                </div>
-                <div class="inputIcon">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                </div>
-            </div>
         </div>
-        <div class="listArea"></div>
     </div>
-    <div class="popUp">
-        <div class="popUpText">
-            Do you agree to take the gasoline tanker job?
-        </div>
-        <div class="popUpButtons">
-            <div id="cancel">
-                <div class="cancelIcon">
-                    <img src="images/Refund_back.png" alt="">
-                </div>
-                <div class="cancelText">
-                    Cancel
-                </div>
+
+    <!-- Standalone Progress Bar (for in-game use) -->
+    <div class="standalone-progress-bar" id="standaloneProgressBar">
+        <div class="progress-bar-header">
+            <div class="progress-icon">
+                <i class="fas fa-bus"></i>
             </div>
-            <div id="confirm">
-                CONFIRM
+            <div class="progress-text">Loading Route...</div>
+        </div>
+        <div class="progress-bar-wrapper">
+            <div class="progress-bar-background">
+                <div class="progress-bar-fill" id="standaloneProgressFill"></div>
+            </div>
+            <div class="progress-bar-info">
+                <div class="progress-percentage" id="standaloneProgressPercent">0%</div>
+                <div class="progress-time" id="standaloneProgressTime">--:--</div>
             </div>
         </div>
     </div>
+
+    <!-- Modals and Notifications -->
+    <div class="notification-container" id="notificationContainer"></div>
+
     <script src="app.js"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 shared = {}
 shared.Framework = "auto" -- qb, esx
 shared.UseTarget = true
-shared.debug = false
+shared.debug = true
 shared.infoText = true
 shared.CustomKey = false -- Custom Vehicle Keys
 
@@ -245,7 +245,6 @@ shared.Locales = {
     ['passenger_boarding'] = 'Press ~y~E~w~ to load and unload passengers',
     ['active_duty'] = "You're on active duty!",
     ['back_to_the_station'] = 'You got the last passenger. Go back to the bus station',
-    ['remaining_stations'] = 'Remaining stations : ',
     ['new_passengers'] = 'Wait for the passenger to get off and the new passenger to get on',
     ['end_work'] = 'Press ~y~E~w~ to deliver the bus',
     ["xpAndMoney"] = "You have got: ",
